@@ -1790,8 +1790,9 @@ function initMicrodrawXML(obj) {
 		zoomOutButton:"zoom-out",
 		homeButton:"home",
 		preserveViewport: true,
+		zoomPerClick: 1
 	});
-	//viewer.setMouseNavEnabled(false);
+	
 	// open the currentImage
 	viewer.open(ImageInfo[0]["source"]);
 
@@ -1812,13 +1813,15 @@ function initMicrodrawXML(obj) {
 	
 	var initClick = true;
 	$("#grid").click(function() {
-		document.getElementById('openseadragon1').focus();
+		document.getElementById('openseadragon1').scrollIntoView();
 		if (gridEnabled) {
 			gridEnabled = false;
+			//viewer.setMouseNavEnabled(true);
 			//navEnabled = true;
 			viewer.clearOverlays();
 		} else {
 			gridEnabled = true;
+			//viewer.setMouseNavEnabled(false);
 			//navEnabled = false;
 			for(var i=0; i<annotations.length; i++) {
 				var anno = annotations[i];
