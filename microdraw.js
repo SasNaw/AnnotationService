@@ -431,6 +431,10 @@ function clickHandler(event){
         checkRegionSize(region);
     }
     else if( selectedTool == "addpoi") {
+		var undoInfo = getUndo();
+		saveUndo(undoInfo);
+		//mouseUndo = getUndo();
+		//commitMouseUndo();
 		addPoi(event);
 	}
 }
@@ -1128,15 +1132,23 @@ function getUndo() {
     var info = ImageInfo[currentImage]["Regions"];
 
     for( var i = 0; i < info.length; i++ ) {
+	    var el;
 		if(info[i].path) {
-			var el = {
+			el = {
 				json: JSON.parse(info[i].path.exportJSON()),
 				name: info[i].name,
 				selected: info[i].path.selected,
 				fullySelected: info[i].path.fullySelected
+			} 
+			
+		} else {
+			el = {
+				x: info[i].point.x,
+				y: info[i].point.y,
+				name: info[i].name
 			}
-			undo.regions.push(el);
 		}
+		undo.regions.push(el);
     }
     return undo;
 }
@@ -1172,22 +1184,28 @@ function applyUndo(undo) {
     region = null;
     for( var i = 0; i < undo.regions.length; i++ ) {
         var el = undo.regions[i];
-		var project = paper.projects[ImageInfo[undo.imageNumber]["projectID"]];
-		/* Create the path and add it to a specific project.
-		 */
-		var path = new paper.Path();
-		project.addChild(path);
-		path.importJSON(el.json);
-		reg = newRegion({name:el.name, path:path}, undo.imageNumber);
-        // here order matters. if fully selected is set after selected, partially selected paths will be incorrect
-  		reg.path.fullySelected = el.fullySelected;
- 		reg.path.selected = el.selected;
-		if( el.selected ) {
-			if( region === null )
-				region = reg;
-			else
-				console.log("Should not happen: two regions selected?");
-		}
+        if(el.json) {
+        	var project = paper.projects[ImageInfo[undo.imageNumber]["projectID"]];
+			/* Create the path and add it to a specific project.
+			 */
+			var path = new paper.Path();
+			project.addChild(path);
+			path.importJSON(el.json);
+			reg = newRegion({name:el.name, path:path}, undo.imageNumber);
+		    // here order matters. if fully selected is set after selected, partially selected paths will be incorrect
+	  		reg.path.fullySelected = el.fullySelected;
+	 		reg.path.selected = el.selected;
+			if( el.selected ) {
+				if( region === null )
+					region = reg;
+				else
+					console.log("Should not happen: two regions selected?");
+			}
+        } else {
+        	reg = newRegion({name:el.name, x:el.x, y:el.y}, undo.imageNumber);
+        	viewer.addOverlay(reg.img, reg.point);
+        }
+		
     }
     drawingPolygonFlag = undo.drawingPolygonFlag;
 }
@@ -1887,6 +1905,7 @@ function initMicrodraw() {
 function printImgInfo() {
 	console.log("regions:");
 	console.log(ImageInfo[0].Regions);
+	console.log(viewer.overlaysContainer.childNodes[0].x, viewer.overlaysContainer.childNodes[0].y);
 }
 
 function initMicrodrawXML(obj) {
