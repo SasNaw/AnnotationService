@@ -28,12 +28,12 @@
 	<div class="row">
 		<div class="cell" style="text-align:center">
 			<div class="buttonGroup">
-				<img class="button" id="zoom"        title="Navigator"              src="img/navigate.svg" />
-				<img class="button" id="home"        title="Home"                   src="img/home.svg" />
-				<img class="button" id="zoom-in"     title="Zoom in"                src="img/plus.svg" />
-				<img class="button" id="zoom-out"    title="Zoom out"               src="img/minus.svg" />
+				<img class="button" id="navigate"         title="Navigator"              src="img/navigate.svg" />
+				<img class="button" id="home"         title="Home"                   src="img/home.svg" />
+				<img class="button" id="save"         title="Save annotations"       src="img/save.svg" />
 			</div>
 			<div class="buttonGroup">
+				<img class="button" id="addpoi"       title="Add POI"   			 src="img/plus.svg" />
 				<img class="button" id="select"       title="Select"                 src="img/select.svg" />
 				<img class="button" id="draw"         title="Draw"                   src="img/draw.svg" />
 				<img class="button" id="draw-polygon" title="Draw polygon"           src="img/draw-polygon.svg" />
@@ -46,15 +46,14 @@
 				<img class="button" id="rotate"       title="Rotate region"          src="img/rotate.svg" />
 				<img class="button" id="flip"         title="Flip region"            src="img/flip.svg" />
                 <img class="button" id="handle"       title="Toggle handles"         src="img/save.svg" />
+                <img class="button" id="delete"       title="Delete region/POI"      src="img/delete.svg" />
 			</div>
 			<div class="buttonGroup">
-				<img class="button" id="save"        title="Save annotations"       src="img/save.svg" />
-				<img class="button" id="copy"	     title="Copy path"		        src="img/copy.svg" />
-				<img class="button"	id="paste"	     title="Paste path"		        src="img/paste.svg" />
-				<img class="button" id="delete"      title="Delete region"          src="img/delete.svg" />
-			</div>
-			<div class = "buttonGroup">
-				<img class="button" id="grid"        title="Annotation grid" style="padding:15px"/>
+				<!--
+					<img class="button" id="copy"	     title="Copy path"		        src="img/copy.svg" />
+					<img class="button"	id="paste"	     title="Paste path"		        src="img/paste.svg" />
+				-->
+				
 			</div>
 		</div>
 	</div>
@@ -64,6 +63,9 @@
 			<br />
 			Regions
 			<div id="regionList"></div>
+			<br />
+			POI
+			<div id="poiList"></div>
 		</div>
 	</div>
 </div>
@@ -99,27 +101,21 @@
 </div>
 
 <!-- OpenSeadragon viewer -->
-<div id="openseadragon1" style="width:100%">
-</div>
+<div id="openseadragon1" style="width:100%"></div>
 
 <!-- alert/info box after saving -->
 <div id="saveDialog"></div>
 
-<!-- <section class="padding-top-30" style="text-align:center">
-		<p> powered by <br/>
-		<img src="img/osd_logo.png"  style="width:2.3rem;vertical-align:middle;padding:15px"/>OpenSeadragon
-		</p>
-	</section> -->
-
 <!-- Load javascript -->
 <script src="lib/paper-full-0.9.25.min.js"></script>
 <script src="lib/openseadragon/openseadragon.js"></script>
+<script src="lib/openseadragon/openseadragon-fabricjs-overlay.js"></script>
+<script src="lib/openseadragon/fabricjs/fabricjs.min.js"></script>
 <script src="lib/openseadragon-viewerinputhook.min.js"></script>
 <script src="lib/OpenSeadragonScalebar/openseadragon-scalebar.js"></script>
 <script src="lib/jquery-1.11.0.min.js"></script>
 <script src="lib/mylogin/login.js"></script>
 <script src="neurolex-ontology.js"></script>
-<!-- <script src="base.js"></script> -->
 <script src="microdraw.js"></script>
 </body>
 

@@ -45,7 +45,7 @@ html,body {
 #menuBar {
 	position:absolute;
 	width:200px;
-	height: 100%;
+	min-height: 100%;
 	top:0;
 	left:0;
 	background-color:rgba(200,200,200,0.5);
@@ -89,7 +89,7 @@ html,body {
 	width: calc( 100% - 4px); /* 100% - 2*margin */
 }
 
-#regionList {
+#regionList, #poiList {
 	position:relative;
 	min-height:30px;
 	height:auto;
@@ -245,3 +245,4 @@ html,body {
     opacity:    0.7;
     background-color: transparent;
 }
+
