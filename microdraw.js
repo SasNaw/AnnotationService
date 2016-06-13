@@ -803,7 +803,7 @@ function mouseDown(x,y) {
                 if(region && region.path ) {
 				    region.path.selected = false;
 				}
-              
+
                 // Start a new Region with alpha 0
                 var path = new paper.Path({segments:[point]})
                 path.strokeWidth = config.defaultStrokeWidth;
@@ -1571,11 +1571,15 @@ function save() {
     if( debug ) console.log("+ saved regions:",ImageInfo[currentImage]["Regions"].length);
 }
 
+function getJsonSource() {
+    return params.source.substr(1, params.source.length-5)+"_files/imageinfo.json";
+}
+
 function saveJson() {
     console.log("> writing json to file");
 
     // get rid of leading "/" and replace ".dzi" with "_files/imageinfo.json"
-    var source = params.source.substr(1, params.source.length-5)+"_files/imageinfo.json";
+    var source = getJsonSource();
     console.log(source);
 
     $.ajax({
@@ -1926,16 +1930,18 @@ function initMicrodraw() {
 function printImgInfo() {
 	console.log("regions:");
 	console.log(ImageInfo[0].Regions);
-	console.log(viewer.overlaysContainer.childNodes[0].x, viewer.overlaysContainer.childNodes[0].y);
+	// console.log(viewer.overlaysContainer.childNodes[0].x, viewer.overlaysContainer.childNodes[0].y);
 }
 
 function initMicrodrawXML(obj) {
 	initAnnotations(obj);
 	// set up the ImageInfo array and imageOrder array
     console.log(obj);
-	
-	ImageInfo[0] = {"source": params.source, "Regions": [], "projectID": undefined};
-    
+
+    currentImage = 0;
+	ImageInfo[currentImage] = {"source": params.source, "Regions": [], "projectID": undefined};
+
+
     // set default values for new regions (general configuration)
     if (config.defaultStrokeColor == undefined) config.defaultStrokeColor = 'black';
     if (config.defaultStrokeWidth == undefined) config.defaultStrokeWidth = 1;
@@ -1946,7 +1952,7 @@ function initMicrodrawXML(obj) {
         if (obj.configuration.defaultStrokeWidth != undefined) config.defaultStrokeWidth = obj.configuration.defaultStrokeWidth;
         if (obj.configuration.defaultFillAlpha != undefined) config.defaultFillAlpha = obj.configuration.defaultFillAlpha;
     }
-	
+
 	viewer = OpenSeadragon({
 		id: "openseadragon1",
 		prefixUrl: "lib/openseadragon/images/",
@@ -1985,6 +1991,18 @@ function initMicrodrawXML(obj) {
 		initAnnotationOverlay();
 		updateSliceName();
 
+        console.log(getJsonSource());
+        $.getJSON(getJsonSource(), function(json) {
+            var region;
+            for(var i=0; i<json.length; i++) {
+                // todo: parse poi
+                region = json[i];
+                var path = new paper.Path();
+                path.importJSON(json[i].path);
+                region.path = path;
+                newRegion(region);
+            }
+        });
 	});
 	viewer.addHandler('animation', function(event){
 		transform();
@@ -1998,7 +2016,7 @@ function initMicrodrawXML(obj) {
 		{tracker: 'viewer', handler: 'dragHandler', hookHandler: dragHandler},
 		{tracker: 'viewer', handler: 'dragEndHandler', hookHandler: dragEndHandler}
 	]});
-	
+
 }
 
 function getAnnotationIndex(id) {
