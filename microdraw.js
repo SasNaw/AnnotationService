@@ -1336,7 +1336,8 @@ function toolSelection(event) {
             backToPreviousTool(prevTool);
             break;
         case "save":
-            microdrawDBSave();
+            // microdrawDBSave();
+            saveJson();
             backToPreviousTool(prevTool);
             break;
         case "home":
@@ -1415,7 +1416,7 @@ function microdrawDBSave() {
             el.name = slice.Regions[i].name;
             value.Regions.push(el);
         }
-    
+
         // check if the slice annotations have changed since loaded by computing a hash
         var h = hash(JSON.stringify(value.Regions)).toString(16);
         if( debug > 1 )
@@ -1457,9 +1458,9 @@ function microdrawDBSave() {
             }
         });
         })(sl, h);
-        
+
         //show dialog box with timeout
-        $('#saveDialog').html(savedSlices).fadeIn();    
+        $('#saveDialog').html(savedSlices).fadeIn();
         setTimeout(function() { $("#saveDialog").fadeOut(500);},2000);
     }
 }
@@ -1568,6 +1569,26 @@ function save() {
     localStorage.Microdraw = JSON.stringify(obj);
 
     if( debug ) console.log("+ saved regions:",ImageInfo[currentImage]["Regions"].length);
+}
+
+function saveJson() {
+    console.log("> writing json to file");
+
+    // get rid of leading "/" and replace ".dzi" with "_files/imageinfo.json"
+    var source = params.source.substr(1, params.source.length-5)+"_files/imageinfo.json";
+    console.log(source);
+
+    $.ajax({
+        type : "POST",
+        url : "json.php",
+        data : {
+            json : JSON.stringify(ImageInfo[currentImage]["Regions"]),
+            source: source
+        }
+
+    });
+
+    console.log("< writing json to file");
 }
 
 function load() {
@@ -1910,7 +1931,6 @@ function printImgInfo() {
 
 function initMicrodrawXML(obj) {
 	initAnnotations(obj);
-	
 	// set up the ImageInfo array and imageOrder array
     console.log(obj);
 	
