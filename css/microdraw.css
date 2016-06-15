@@ -89,7 +89,7 @@ html,body {
 	width: calc( 100% - 4px); /* 100% - 2*margin */
 }
 
-#regionList, #poiList {
+#regionList {
 	position:relative;
 	min-height:30px;
 	height:auto;

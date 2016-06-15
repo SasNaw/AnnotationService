@@ -35,11 +35,40 @@ var showScalebar = false;
 var annotations = [];
 var tilesize;
 var height;
-var width; 
+var width;
 
 /***1
     Region handling functions
 */
+function newPoiArrow(point, name, pathInfo) {
+    var x = point.x;
+    var y = point.y;
+
+    var path = new paper.Path();
+    if(pathInfo) {
+        path.strokeWidth = pathInfo.strokeWidth ? pathInfo.strokeWidth : config.defaultStrokeWidth;
+        path.strokeColor = pathInfo.strokeColor ? pathInfo.strokeColor : config.defaultStrokeColor;
+        path.strokeScaling = pathInfo.strokeScaling;
+        path.fillColor = pathInfo.fillColor;
+    } else {
+        var color = regionHashColor(name);
+
+        path.strokeWidth = config.defaultStrokeWidth;
+        path.strokeColor = config.defaultStrokeColor;
+        path.strokeScaling = false;
+        path.fillColor = 'rgba('+color.red+','+color.green+','+color.blue+','+0.2+')';
+    }
+    path.selected = false;
+
+    path.add(new paper.Point(x, y));
+    path.add(new paper.Point(x-3, y-8));
+    path.add(new paper.Point(x, y-6));
+    path.add(new paper.Point(x+3, y-8));
+    path.closed = true;
+
+    return path;
+}
+
 function newRegion(arg, imageNumber) {
 	if( debug ) console.log("> newRegion");
     var reg = {};
@@ -49,8 +78,7 @@ function newRegion(arg, imageNumber) {
 		// point of interest
 		if( arg.name ) {
 			reg.name = arg.name;
-		}
-		else {
+		} else {
 			reg.name = "poi " + reg.uid;
 		}
         if(arg.point) {
@@ -58,8 +86,7 @@ function newRegion(arg, imageNumber) {
         } else {
 	    	reg.point = arg;
         }
-		reg.img = document.createElement("img");
-		reg.img.src = "img/plus.svg";
+        reg.path = newPoiArrow(reg.point, reg.name, arg.path)
 	}
 	else {
 		// regular region
@@ -79,7 +106,6 @@ function newRegion(arg, imageNumber) {
 			reg.path.selected = false;
 		}
 	}
-
 	if( imageNumber === undefined ) {
 		imageNumber = currentImage;
 	}
@@ -445,12 +471,8 @@ function clickHandler(event){
 
 function addPoi(event) {
 	var webPoint = event.position;
-	// Convert that to viewport coordinates, the lingua franca of OpenSeadragon coordinates.
-	var viewportPoint = viewer.viewport.pointFromPixel(webPoint);
-	var point = new OpenSeadragon.Point(viewportPoint.x, viewportPoint.y)
+    var point = paper.view.viewToProject(new paper.Point(webPoint.x,webPoint.y));
 	var reg = newRegion(point);
-	viewer.addOverlay(reg.img, reg.point);
-	selectRegion(reg);
 }
 
 function pressHandler(event){
@@ -697,42 +719,50 @@ function mouseDown(x,y) {
                         handle.point = point;
                     }
                     if( selectedTool == "delpoint" ) {
-                        hitResult.segment.remove();
-                        commitMouseUndo();
+                        if(!region.point) {
+                            hitResult.segment.remove();
+                            commitMouseUndo();
+                        }
                     }
                 }
                 else if( hitResult.type == 'stroke' && selectedTool == "addpoint" ) {
-                    region.path
-                    .curves[hitResult.location.index]
-                    .divide(hitResult.location);
-                    region.path.fullySelected = true;
-                    commitMouseUndo();
-                    paper.view.draw();
+                    if(!region.point) {
+                        region.path
+                            .curves[hitResult.location.index]
+                            .divide(hitResult.location);
+                        region.path.fullySelected = true;
+                        commitMouseUndo();
+                        paper.view.draw();
+                    }
                 }
                 else if( selectedTool == "addregion" ) {
                     if( prevRegion ) {
-                        var newPath = region.path.unite(prevRegion.path);
-                        removeRegion(prevRegion);
-                        region.path.remove();
-                        region.path = newPath;
-                        updateRegionList();
-                        selectRegion(region);
-                        paper.view.draw();
-                        commitMouseUndo();
-                        backToSelect();
+                        if(!prevRegion.point && !region.point) {
+                            var newPath = region.path.unite(prevRegion.path);
+                            removeRegion(prevRegion);
+                            region.path.remove();
+                            region.path = newPath;
+                            updateRegionList();
+                            selectRegion(region);
+                            paper.view.draw();
+                            commitMouseUndo();
+                            backToSelect();
+                        }
                     }
                 }
                 else if( selectedTool == "delregion" ) {
                     if( prevRegion ) {
-                        var newPath = prevRegion.path.subtract(region.path);
-                        removeRegion(prevRegion);
-                        prevRegion.path.remove();
-                        newRegion({path:newPath});
-                        updateRegionList();
-                        selectRegion(region);
-                        paper.view.draw();
-                        commitMouseUndo();
-                        backToSelect();
+                        if(!prevRegion.point && !region.point) {
+                            var newPath = prevRegion.path.subtract(region.path);
+                            removeRegion(prevRegion);
+                            prevRegion.path.remove();
+                            newRegion({path:newPath});
+                            updateRegionList();
+                            selectRegion(region);
+                            paper.view.draw();
+                            commitMouseUndo();
+                            backToSelect();
+                        }
                     }
                 }
                 else if( selectedTool == "splitregion" ) {
@@ -742,35 +772,37 @@ function mouseDown(x,y) {
                     i.e. newRegion is what was region
                     and prevRegion color should go to the other part*/
                     if( prevRegion ) {
-                        var prevColor = prevRegion.path.fillColor; 
-                        //color of the overlaid part
-                        var color = region.path.fillColor;
-                        var newPath = region.path.divide(prevRegion.path);
-                        
-                        removeRegion(prevRegion);
-                        region.path.remove();
+                        if(!prevRegion.point && !region.point) {
+                            var prevColor = prevRegion.path.fillColor;
+                            //color of the overlaid part
+                            var color = region.path.fillColor;
+                            var newPath = region.path.divide(prevRegion.path);
 
-                        region.path = newPath;
-                        var newReg;
-                        for( i = 0; i < newPath._children.length; i++ )
-                        {
-                            if( i == 0 ) {
-                                region.path = newPath._children[i];
-                            }
-                            else {
-                                newReg = newRegion({path:newPath._children[i]});
-                            }
-                        }
-                        region.path.fillColor = color; 
-                        if( newReg ) {
-                            newReg.path.fillColor = prevColor;
-                        }
-                        updateRegionList();
-                        selectRegion(region);
-                        paper.view.draw();
+                            removeRegion(prevRegion);
+                            region.path.remove();
 
-                        commitMouseUndo();
-                        backToSelect();
+                            region.path = newPath;
+                            var newReg;
+                            for( i = 0; i < newPath._children.length; i++ )
+                            {
+                                if( i == 0 ) {
+                                    region.path = newPath._children[i];
+                                }
+                                else {
+                                    newReg = newRegion({path:newPath._children[i]});
+                                }
+                            }
+                            region.path.fillColor = color;
+                            if( newReg ) {
+                                newReg.path.fillColor = prevColor;
+                            }
+                            updateRegionList();
+                            selectRegion(region);
+                            paper.view.draw();
+
+                            commitMouseUndo();
+                            backToSelect();
+                        }
                     }
                 }
                 break;
@@ -831,7 +863,9 @@ function mouseDown(x,y) {
             break;
         }
         case "rotate":
-            region.origin = point;
+            if(region != null) {
+                region.origin = point;
+            }
             break;
     }
     paper.view.draw();
@@ -878,8 +912,10 @@ function mouseDrag(x,y,dx,dy) {
         for( i in ImageInfo[currentImage]["Regions"] ) {
         	if(ImageInfo[currentImage]["Regions"][i].path) {
         		if( ImageInfo[currentImage]["Regions"][i].path.selected ) {
-		            ImageInfo[currentImage]["Regions"][i].path.rotate(degree, region.origin);
-		            commitMouseUndo();
+                    if(!ImageInfo[currentImage]["Regions"][i].point) {
+                        ImageInfo[currentImage]["Regions"][i].path.rotate(degree, region.origin);
+                        commitMouseUndo();
+                    }
 		        }
         	}
         }
@@ -911,7 +947,9 @@ function simplify() {
         if( debug ) console.log("> simplifying region path");
 
         var orig_segments = region.path.segments.length;
-        region.path.simplify();
+        if(!region.point) {
+            region.path.simplify();
+        }
         var final_segments = region.path.segments.length;
         console.log( parseInt(final_segments/orig_segments*100) + "% segments conserved" );
         paper.view.draw();
@@ -939,17 +977,19 @@ function flipRegion(reg) {
 function toggleHandles() {
     console.log("> toggleHandles");
     if (region != null) {
-        if (region.path.hasHandles()) {
-            if (confirm('Do you really want to remove the handles?')) {
+        if(!region.point) {
+            if (region.path.hasHandles()) {
+                if (confirm('Do you really want to remove the handles?')) {
+                    var undoInfo = getUndo();
+                    region.path.clearHandles();
+                    saveUndo(undoInfo);
+                }
+            }
+            else {
                 var undoInfo = getUndo();
-                region.path.clearHandles();
+                region.path.smooth();
                 saveUndo(undoInfo);
             }
-        }
-        else {
-            var undoInfo = getUndo();
-            region.path.smooth();
-            saveUndo(undoInfo);
         }
         paper.view.draw();
     }
@@ -1599,6 +1639,31 @@ function saveJson() {
     console.log("< writing json to file");
 }
 
+function loadJson() {
+    console.log("> loading json from " + getJsonSource());
+    console.log(getJsonSource());
+    $.getJSON(getJsonSource(), function(json) {
+        var region;
+        for(var i=0; i<json.length; i++) {
+            region = json[i];
+            if(json[i].point) {
+                // create poi
+                var path = new paper.Path();
+                path.importJSON(json[i].path);
+                path.remove();
+                newRegion({point:new paper.Point(json[i].point[1], json[i].point[2]), path:path});
+            } else {
+                // create region
+                var path = new paper.Path();
+                path.importJSON(json[i].path);
+                region.path = path;
+                newRegion(region);
+            }
+        }
+    });
+    console.log("< loading json from " + getJsonSource());
+}
+
 function load() {
     if( debug ) console.log("> load");
 
@@ -1996,24 +2061,7 @@ function initMicrodrawXML(obj) {
 		updateSliceName();
 
         // load saved annotations and pois
-        console.log(getJsonSource());
-        $.getJSON(getJsonSource(), function(json) {
-            var region;
-            for(var i=0; i<json.length; i++) {
-                // todo: parse poi
-                region = json[i];
-                if(json[i].path) {
-                    var path = new paper.Path();
-                    path.importJSON(json[i].path);
-                    region.path = path;
-                    newRegion(region);
-                } else {
-                    var poi = newRegion(region);
-                    viewer.addOverlay(poi.img, poi.point);
-                }
-
-            }
-        });
+        loadJson();
 	});
 	viewer.addHandler('animation', function(event){
 		transform();
@@ -2028,6 +2076,10 @@ function initMicrodrawXML(obj) {
 		{tracker: 'viewer', handler: 'dragEndHandler', hookHandler: dragEndHandler}
 	]});
 
+    // handle different zoom levels:
+    viewer.addHandler('zoom', function(event){
+        console.log("zoom: " + viewer.viewport.getZoom());
+    });
 }
 
 function getAnnotationIndex(id) {
