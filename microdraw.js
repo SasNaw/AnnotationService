@@ -45,7 +45,7 @@ function newRegion(arg, imageNumber) {
     var reg = {};
 	reg.uid = uniqueID();
 	
-	if(arg.x && arg.y) {
+	if(arg.x && arg.y || arg.point) {
 		// point of interest
 		if( arg.name ) {
 			reg.name = arg.name;
@@ -53,7 +53,11 @@ function newRegion(arg, imageNumber) {
 		else {
 			reg.name = "poi " + reg.uid;
 		}
-		reg.point = arg;
+        if(arg.point) {
+            reg.point = arg.point;
+        } else {
+	    	reg.point = arg;
+        }
 		reg.img = document.createElement("img");
 		reg.img.src = "img/plus.svg";
 	}
@@ -1991,16 +1995,23 @@ function initMicrodrawXML(obj) {
 		initAnnotationOverlay();
 		updateSliceName();
 
+        // load saved annotations and pois
         console.log(getJsonSource());
         $.getJSON(getJsonSource(), function(json) {
             var region;
             for(var i=0; i<json.length; i++) {
                 // todo: parse poi
                 region = json[i];
-                var path = new paper.Path();
-                path.importJSON(json[i].path);
-                region.path = path;
-                newRegion(region);
+                if(json[i].path) {
+                    var path = new paper.Path();
+                    path.importJSON(json[i].path);
+                    region.path = path;
+                    newRegion(region);
+                } else {
+                    var poi = newRegion(region);
+                    viewer.addOverlay(poi.img, poi.point);
+                }
+
             }
         });
 	});
