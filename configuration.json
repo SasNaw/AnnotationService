@@ -3,5 +3,6 @@
     "regionOntology":true,
     "drawingEnabled":true,
     "removeTools":[],
-    "multiImageSave":false
+    "multiImageSave":false,
+    "contextDictionary":"exampleContextDictionary.json"
 }

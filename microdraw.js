@@ -37,6 +37,8 @@ var tilesize;
 var height;
 var width;
 
+var contextDictionary = [];
+
 /***1
     Region handling functions
 */
@@ -1871,6 +1873,10 @@ function loadConfiguration() {
     // load general microdraw configuration
     $.getJSON("configuration.json", function(data) {
         config = data;
+        // load context dictionary
+        $.getJSON(config.contextDictionary, function(dictionary) {
+            contextDictionary = dictionary.dictionary;
+        });
         
         drawingTools = ["select", "draw", "draw-polygon", "simplify", "addpoint",
                         "delpoint", "addregion", "delregion", "splitregion", "rotate",
