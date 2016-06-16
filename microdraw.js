@@ -373,40 +373,25 @@ function toggleRegion(reg) {
     if( region !== null ) {
         if( debug ) console.log("> toggle region"); 
 		
-		if(reg.path) {
-			// toggle visibility of path
-			var color = regionHashColor(reg.name);
-		    if( reg.path.fillColor !== null ) {
-		        reg.path.storeColor = reg.path.fillColor;
-		        reg.path.fillColor = null;
+        if( reg.path.fillColor !== null ) {
+            reg.path.storeColor = reg.path.fillColor;
+            reg.path.fillColor = null;
 
-		        reg.path.strokeWidth = 0;
-		        reg.path.fullySelected = false;
-		        reg.storeName = reg.name;
-		        //reg.name=reg.name+'*';
-		        $('#eye_' + reg.uid).attr('src','img/eyeClosed.svg');
-		    }
-		    else {
-		        reg.path.fillColor = reg.path.storeColor;
-		        reg.path.strokeWidth = 1;
-		        reg.name = reg.storeName;
-		        $('#eye_' + reg.uid).attr('src','img/eyeOpened.svg');
-		    }
-		    paper.view.draw();
-		} else {
-			// toggle visibility of poi
-			if(reg.img) {
-				viewer.removeOverlay(reg.img);
-				reg.img = undefined;
-				$('#eye_' + reg.uid).attr('src','img/eyeClosed.svg');
-			} else {
-				reg.img = document.createElement("img");
-				reg.img.src = "img/plus.svg";
-				viewer.addOverlay(reg.img, reg.point);
-				$('#eye_' + reg.uid).attr('src','img/eyeOpened.svg');
-			}
-		}
-        
+            reg.path.storeWidth = reg.path.strokeWidth;
+            reg.path.strokeWidth = 0;
+            reg.path.fullySelected = false;
+            reg.storeName = reg.name;
+            //reg.name=reg.name+'*';
+            $('#eye_' + reg.uid).attr('src','img/eyeClosed.svg');
+        }
+        else {
+            reg.path.fillColor = reg.path.storeColor;
+            reg.path.strokeWidth = reg.path.storeWidth;
+            reg.name = reg.storeName;
+            $('#eye_' + reg.uid).attr('src','img/eyeOpened.svg');
+        }
+        paper.view.draw();
+
         $(".region-tag#" + reg.uid + ">.region-name").text(reg.name);
     }
 }
