@@ -4,5 +4,6 @@
     "drawingEnabled":true,
     "removeTools":[],
     "multiImageSave":false,
-    "contextDictionary":"exampleContextDictionary.json"
+    "contextDictionary":"exampleContextDictionary.json",
+    "autoAssign":false
 }

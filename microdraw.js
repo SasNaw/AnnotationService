@@ -32,10 +32,8 @@ var isIOS = navigator.platform.match(/(iPhone|iPod|iPad)/i)?true:false;
 	AnnotationService variables
 */
 var showScalebar = false;
-var annotations = [];
-var tilesize;
-var height;
 var width;
+var enableNumKeys = false;
 
 var contextDictionary = [];
 
@@ -108,12 +106,24 @@ function newRegion(arg, imageNumber) {
 			reg.path.selected = false;
 		}
 	}
+
+    // set context
+    if(arg.context) {
+        reg.context = arg.context;
+    } else {
+        if(config.autoAssign) {
+            // auto assign with background region
+        } else {
+            reg.context = contextDictionary.default;
+        }
+    }
+
 	if( imageNumber === undefined ) {
 		imageNumber = currentImage;
 	}
 	if( imageNumber === currentImage ) {
 		// append region tag to regionList
-		var el = $(regionTag(reg.name,reg.uid));
+		var el = $(regionTag(reg.name,reg.uid,reg.context));
 		$("#regionList").append(el);
 
 		// handle single click on computers
@@ -280,7 +290,7 @@ function regionHashColor(name) {
     return color;
 }
 
-function regionTag(name,uid) {
+function regionTag(name,uid,context) {
     //if( debug ) console.log("> regionTag");
 
     var str;
@@ -290,21 +300,41 @@ function regionTag(name,uid) {
         var mult = 1.0;
         if( reg ) {
             mult = 255;
-            if(reg.path)
-	            color = reg.path.fillColor;
+            color = reg.path.fillColor;
         }
         else {
             color = regionHashColor(name);
         }
-        str = [ "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
+        if(context) {
+            str = [ "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
                 "<img class='eye' title='Region visible' id='eye_" + uid + "' src='img/eyeOpened.svg' />",
-                "<div class='region-color'",
+                "<div class='region-color' id='color_" + uid + "'",
                 "style='background-color:rgba(",
                 parseInt(color.red*mult),",",parseInt(color.green*mult),",",parseInt(color.blue*mult),",0.67",
                 ")'></div>",
-                "<span class='region-name'>" + name + "</span>",
+                "<span class='region-name' id='name_" + uid + "'>" + name + "</span>",
                 "</div>",
-                ].join(" ");
+                "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
+                "<img class='eye' title='Remove context' id='delContext_" + uid + "' src='img/removeContext.svg' />",
+                "<span class='context-name' id='context_" + uid + "'>" + "(" + context + ")" + "</span>",
+                "</div>",
+            ].join(" ");
+        } else {
+            str = [ "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
+                "<img class='eye' title='Region visible' id='eye_" + uid + "' src='img/eyeOpened.svg' />",
+                "<div class='region-color' id='color_" + uid + "'",
+                "style='background-color:rgba(",
+                parseInt(color.red*mult),",",parseInt(color.green*mult),",",parseInt(color.blue*mult),",0.67",
+                ")'></div>",
+                "<span class='region-name' id='name_" + uid + "'>" + name + "</span>",
+                "</div>",
+                "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
+                "<img class='eye' title='Add context' id='addContext_" + uid + "' src='img/addContext.svg' />",
+                "</div>",
+            ].join(" ");
+
+
+        }
     }
     else {
         color = regionHashColor(name);
@@ -317,7 +347,8 @@ function regionTag(name,uid) {
                 "</div>",
                 ].join(" ");
     }
-    return str; 
+
+    return str;
 }
 
 function appendRegionTagsFromOntology(o) {
@@ -344,6 +375,22 @@ function appendRegionTagsFromOntology(o) {
     }
 }
 
+function appendContextTagsFromDictionary() {
+    if( debug ) console.log("> appendContextTagsFromDictionary");
+    var dic = contextDictionary.dictionary;
+    for( var i = 0; i < dic.length; i++ ) {
+            var tag = regionTag("(" + (i+1) + ") - " + dic[i]);
+            var el = $(tag).addClass("context");
+            $("#contextPicker").append(el);
+
+            // handle single click on computers
+            el.click(singlePressOnRegion);
+
+            el.on("touchstart",handleRegionTap);
+        // }
+    }
+}
+
 function regionPicker(parent) {
     if( debug ) console.log("> regionPicker");
 
@@ -351,10 +398,17 @@ function regionPicker(parent) {
     $("div#regionPicker").show();
 }
 
+function contextPicker(parent) {
+    if( debug ) console.log("> contextPicker");
+
+    $("div#contextPicker").appendTo("body");
+    enableNumKeys = true;
+    $("div#contextPicker").show();
+}
+
 function changeRegionName(reg,name) {
     if( debug ) console.log("> changeRegionName");
 
-    var i;
     var color = regionHashColor(name);
 
 	if(reg.path) {
@@ -367,6 +421,14 @@ function changeRegionName(reg,name) {
     // Update region tag
     $(".region-tag#" + reg.uid + ">.region-name").text(name);
     $(".region-tag#" + reg.uid + ">.region-color").css('background-color','rgba('+color.red+','+color.green+','+color.blue+',0.67)');
+}
+
+function changeRegionContext(reg,context) {
+    if( debug ) console.log("> changeRegionContext");
+    reg.context = context;
+
+    // Update region tag
+    $(".region-tag#" + reg.uid + ">.context-name").text("(" + context + ")");
 }
 
 /*** toggle visibility of region 
@@ -410,7 +472,7 @@ function updateRegionList() {
     for( var i = 0; i < ImageInfo[currentImage]["Regions"].length; i++ ) {
         var reg = ImageInfo[currentImage]["Regions"][i];
         // append region tag to regionList
-        var el = $(regionTag(reg.name,reg.uid));
+        var el = $(regionTag(reg.name,reg.uid, reg.context));
         $("#regionList").append(el);
 
         // handle single click on computers
@@ -459,7 +521,7 @@ function clickHandler(event){
 function addPoi(event) {
 	var webPoint = event.position;
     var point = paper.view.viewToProject(new paper.Point(webPoint.x,webPoint.y));
-	var reg = newRegion(point);
+	newRegion(point);
 }
 
 function pressHandler(event){
@@ -490,56 +552,19 @@ function dragEndHandler(event){
     }
 }
 
-function singlePressOnPoi(event) {
-    if( debug ) console.log("> singlePressOnPoi");
-
-    event.stopPropagation();
-    event.preventDefault();
-
-    var el = $(this);
-    var uid;
-    var poi;
-
-    if( debug ) console.log(event);
-    if( event.clientX > 20 ) {
-        if( event.clientX > 50 ) {
-            if( el.hasClass("ontology") ) {
-                // Click on regionPicker (ontology selection list)
-                var newName = el.find(".region-name").text();
-                uid = $(".region-tag.selected").attr('id');
-                reg = findRegionByUID(uid);
-                changeRegionName(reg,newName);
-                $("div#regionPicker").appendTo($("body")).hide();
-            }
-            else {
-                // Click on regionList (list or annotated regions)
-                uid = $(this).attr('id');
-                reg = findRegionByUID(uid);
-                if( reg ) {
-                    selectRegion(reg);
-                }
-                else
-                    console.log("region undefined");
-            }
-        }
-        else {
-            var reg = findRegionByUID(this.id);
-            if( reg.path.fillColor != null ) {
-                if( reg ) {
-                selectRegion(reg);
-                }
-                annotationStyle(reg);
-            }
-        }
-    }
-    else {
-        // click outside of poiList
+function handleNumInput(num) {
+    console.log(region.uid);
+    if(num == 0) num = 10;
+    if(num <= contextDictionary.dictionary.length) {
+        changeRegionContext(region, contextDictionary.dictionary[num-1]);
+        $("div#contextPicker").appendTo($("body")).hide();
+        enableNumKeys = false;
     }
 }
 
-
 function singlePressOnRegion(event) {
     if( debug ) console.log("> singlePressOnRegion");
+    if( debug ) console.log(event);
 
     event.stopPropagation();
     event.preventDefault();
@@ -547,43 +572,69 @@ function singlePressOnRegion(event) {
     var el = $(this);
     var uid;
     var reg;
+    var clickedId = event.toElement.id;
 
-    if( debug ) console.log(event);
-    if( event.clientX > 20 ) {
-        if( event.clientX > 50 ) {
-    
-            if( el.hasClass("ontology") ) {
-                // Click on regionPicker (ontology selection list)
-                var newName = el.find(".region-name").text();
-                uid = $(".region-tag.selected").attr('id');
-                reg = findRegionByUID(uid);
-                changeRegionName(reg,newName);
-                $("div#regionPicker").appendTo($("body")).hide();
-            }
-            else {
-                // Click on regionList (list or annotated regions)
-                uid = $(this).attr('id');
-                reg = findRegionByUID(uid);
-                if( reg ) {
-                    selectRegion(reg);
-                }
-                else
-                    console.log("region undefined");
-            }
+    if(el.hasClass("ontology") || el.hasClass("context")) {
+        uid = $(".region-tag.selected").attr('id');
+        reg = findRegionByUID(uid);
+        if (el.hasClass("ontology")) {
+            // Click on regionPicker (ontology selection list)
+            var newName = el.find(".region-name").text();
+            changeRegionName(reg, newName);
+            $("div#regionPicker").appendTo($("body")).hide();
+        } else  {
+            // Click on contextPicker
+            var context = el.find(".region-name").text();
+            changeRegionContext(reg, context);
+            $("div#contextPicker").appendTo($("body")).hide();
+            enableNumKeys = false;
         }
-        else {
+    } else {
+        uid = $(this).attr('id');
+
+        if(clickedId === "eye_" + uid) {
+            // toogle visibility
+            toggleRegion(findRegionByUID(this.id));
+        } else if(clickedId === "name_" + uid) {
+            // Click on regionList (list or annotated regions)
+            reg = findRegionByUID(uid);
+            if( reg ) {
+                selectRegion(reg);
+            } else {
+                console.log("region undefined");
+            }
+        } else if(clickedId === "color_" + uid) {
+            // open color picker
             var reg = findRegionByUID(this.id);
             if( reg.path.fillColor != null ) {
                 if( reg ) {
-                selectRegion(reg);
+                    selectRegion(reg);
                 }
                 annotationStyle(reg);
             }
+        } else if(clickedId === "context_" + uid) {
+            // open context selection
+            reg = findRegionByUID(uid);
+            if( reg ) {
+                selectRegion(reg);
+                contextPicker(this);
+            } else {
+                console.log("region undefined");
+            }
+        } else if(clickedId === "delContext_" + uid) {
+            // remove context from Region
+        } else if(clickedId === "addContext_" + uid) {
+            // add context to Region
+
+        } else {
+            // Click on regionList (list or annotated regions)
+            reg = findRegionByUID(uid);
+            if( reg ) {
+                selectRegion(reg);
+            } else {
+                console.log("region undefined");
+            }
         }
-    }
-    else {
-        var reg = findRegionByUID(this.id);
-        toggleRegion(reg);
     }
 }
 
@@ -1638,12 +1689,13 @@ function loadJson() {
                 var path = new paper.Path();
                 path.importJSON(json[i].path);
                 path.remove();
-                newRegion({point:new paper.Point(json[i].point[1], json[i].point[2]), path:path});
+                newRegion({point:new paper.Point(json[i].point[1], json[i].point[2]), path:path, context:json[i].context});
             } else {
                 // create region
                 var path = new paper.Path();
                 path.importJSON(json[i].path);
                 region.path = path;
+                region.context = json[i].context;
                 newRegion(region);
             }
         }
@@ -1875,7 +1927,8 @@ function loadConfiguration() {
         config = data;
         // load context dictionary
         $.getJSON(config.contextDictionary, function(dictionary) {
-            contextDictionary = dictionary.dictionary;
+            contextDictionary = dictionary;
+            appendContextTagsFromDictionary();
         });
         
         drawingTools = ["select", "draw", "draw-polygon", "simplify", "addpoint",
@@ -1994,7 +2047,6 @@ function printImgInfo() {
 }
 
 function initMicrodrawXML(obj) {
-	initAnnotations(obj);
 	// set up the ImageInfo array and imageOrder array
     console.log(obj);
 
@@ -2071,43 +2123,18 @@ function initMicrodrawXML(obj) {
     viewer.addHandler('zoom', function(event){
         console.log("zoom: " + viewer.viewport.getZoom());
     });
-}
 
-function getAnnotationIndex(id) {
-	for(var i=0; i<annotations.length; i++) {
-		if(annotations[i].id == id) {
-			return i;
-		}
-	}
-	return -1;
-}
-
-function createAnnotation(x, y, type) {
-	var overlay = createOverlay(x, y, type);
-	return {id:overlay.element.id, x:x, y:y, type:type, ol:overlay};
-}
-
-function createOverlay(x, y, type) {
-	var elt = document.createElement("div");
-	elt.id = x+"_"+y;
-	elt.className = type;
-	
-	var val = Math.min(height, width);
-	
-	v = ((tilesize * 100) / val) / 100;
-
-	return {element:elt, location:new OpenSeadragon.Rect(v*x, v*y, v, v)};
-}
-
-function initAnnotations(obj) {
-	tilesize = obj.childNodes[0].attributes[3].nodeValue;
-	height = obj.childNodes[0].childNodes[1].attributes[0].nodeValue;
-	width = obj.childNodes[0].childNodes[1].attributes[1].nodeValue;
-	for(var i=0; i<(height/tilesize); i++) {
-		for(var j=0; j<(width/tilesize); j++) {
-			annotations.push(createAnnotation(j, i, "highlight"));
-		}
-	}
+    document.onkeypress = function(e) {
+        e = e || window.event;
+        var charCode = (typeof e.which == "number") ? e.which : e.keyCode;
+        if (charCode) {
+            if(charCode >= 48 && charCode <= 57) {
+                if(enableNumKeys) {
+                    handleNumInput(String.fromCharCode(charCode));
+                }
+            }
+        }
+    };
 }
 
 function toggleMenu () {
