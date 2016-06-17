@@ -73,7 +73,7 @@ function newRegion(arg, imageNumber) {
 	if( debug ) console.log("> newRegion");
     var reg = {};
 	reg.uid = uniqueID();
-	
+
 	if(arg.x && arg.y || arg.point) {
 		// point of interest
 		if( arg.name ) {
@@ -305,36 +305,19 @@ function regionTag(name,uid,context) {
         else {
             color = regionHashColor(name);
         }
-        if(context) {
-            str = [ "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
-                "<img class='eye' title='Region visible' id='eye_" + uid + "' src='img/eyeOpened.svg' />",
-                "<div class='region-color' id='color_" + uid + "'",
-                "style='background-color:rgba(",
-                parseInt(color.red*mult),",",parseInt(color.green*mult),",",parseInt(color.blue*mult),",0.67",
-                ")'></div>",
-                "<span class='region-name' id='name_" + uid + "'>" + name + "</span>",
-                "</div>",
-                "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
-                "<img class='eye' title='Remove context' id='delContext_" + uid + "' src='img/removeContext.svg' />",
-                "<span class='context-name' id='context_" + uid + "'>" + "(" + context + ")" + "</span>",
-                "</div>",
-            ].join(" ");
-        } else {
-            str = [ "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
-                "<img class='eye' title='Region visible' id='eye_" + uid + "' src='img/eyeOpened.svg' />",
-                "<div class='region-color' id='color_" + uid + "'",
-                "style='background-color:rgba(",
-                parseInt(color.red*mult),",",parseInt(color.green*mult),",",parseInt(color.blue*mult),",0.67",
-                ")'></div>",
-                "<span class='region-name' id='name_" + uid + "'>" + name + "</span>",
-                "</div>",
-                "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
-                "<img class='eye' title='Add context' id='addContext_" + uid + "' src='img/addContext.svg' />",
-                "</div>",
-            ].join(" ");
-
-
-        }
+        str = [ "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
+            "<img class='eye' title='Region visible' id='eye_" + uid + "' src='img/eyeOpened.svg' />",
+            "<div class='region-color' id='color_" + uid + "'",
+            "style='background-color:rgba(",
+            parseInt(color.red*mult),",",parseInt(color.green*mult),",",parseInt(color.blue*mult),",0.67",
+            ")'></div>",
+            "<span class='region-name' id='name_" + uid + "'>" + name + "</span>",
+            "</div>",
+            "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
+            // "<img class='eye' title='Remove context' id='delContext_" + uid + "' src='img/removeContext.svg' />",
+            "<span class='context-name' style='margin-left:20px' id='context_" + uid + "'>" + "(" + context + ")" + "</span>",
+            "</div>",
+        ].join(" ");
     }
     else {
         color = regionHashColor(name);
@@ -585,6 +568,7 @@ function singlePressOnRegion(event) {
         } else  {
             // Click on contextPicker
             var context = el.find(".region-name").text();
+            context = context.split(") - ")[1];
             changeRegionContext(reg, context);
             $("div#contextPicker").appendTo($("body")).hide();
             enableNumKeys = false;
@@ -621,11 +605,6 @@ function singlePressOnRegion(event) {
             } else {
                 console.log("region undefined");
             }
-        } else if(clickedId === "delContext_" + uid) {
-            // remove context from Region
-        } else if(clickedId === "addContext_" + uid) {
-            // add context to Region
-
         } else {
             // Click on regionList (list or annotated regions)
             reg = findRegionByUID(uid);
