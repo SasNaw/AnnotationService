@@ -123,7 +123,7 @@ function newRegion(arg, imageNumber) {
 	}
 	if( imageNumber === currentImage ) {
 		// append region tag to regionList
-		var el = $(regionTag(reg.name,reg.uid,reg.context));
+		var el = $(regionTag(reg.name,reg.uid,reg.context, reg.path.fillColor));
 		$("#regionList").append(el);
 
 		// handle single click on computers
@@ -290,7 +290,7 @@ function regionHashColor(name) {
     return color;
 }
 
-function regionTag(name,uid,context) {
+function regionTag(name,uid,context,fillColor) {
     //if( debug ) console.log("> regionTag");
 
     var str;
@@ -298,11 +298,13 @@ function regionTag(name,uid,context) {
     if( uid ) {
         var reg = findRegionByUID(uid);
         var mult = 1.0;
-        if( reg ) {
+        if(fillColor) {
+            mult = 255;
+            color = fillColor;
+        } else if( reg ) {
             mult = 255;
             color = reg.path.fillColor;
-        }
-        else {
+        } else {
             color = regionHashColor(name);
         }
         str = [ "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
@@ -1668,7 +1670,7 @@ function loadJson() {
                 var path = new paper.Path();
                 path.importJSON(json[i].path);
                 path.remove();
-                newRegion({point:new paper.Point(json[i].point[1], json[i].point[2]), path:path, context:json[i].context});
+                newRegion({point:new paper.Point(json[i].point[1], json[i].point[2]), path:path, context:json[i].context, name:json[i].name});
             } else {
                 // create region
                 var path = new paper.Path();
