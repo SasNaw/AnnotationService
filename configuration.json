@@ -4,6 +4,8 @@
     "drawingEnabled":true,
     "removeTools":[],
     "multiImageSave":false,
+    "regionDictionary":"exampleRegionDictionary.json",
+    "regionProperties":"file.json",
     "contextDictionary":"exampleContextDictionary.json",
     "autoAssign":false
 }

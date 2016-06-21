@@ -36,6 +36,7 @@ var width;
 var enableNumKeys = false;
 
 var contextDictionary = [];
+var regionDictionary = [];
 
 /***1
     Region handling functions
@@ -336,26 +337,25 @@ function regionTag(name,uid,context,fillColor) {
     return str;
 }
 
-function appendRegionTagsFromOntology(o) {
-    if( debug ) console.log("> appendRegionTagsFromOntology");
-
-    for( var i = 0; i < o.length; i++ ) {
-        if( o[i].parts ) {
-            $("#regionPicker").append("<div>"+o[i].name+"</div>");
-            appendRegionTagsFromOntology(o[i].parts);
+function appendRegionTagsFromDictionary() {
+    if( debug ) console.log("> appendRegionTagsFromDictionary");
+    var dic = regionDictionary;
+    // get headers and parts lists
+    for( var i = 0; i < dic.length; i++ ) {
+        if(dic[i].header) {
+            $("#regionPicker").append("<div>"+dic[i].header+"</div>");
         }
-        else {
-            var tag = regionTag(o[i].name);
-            var el = $(tag).addClass("ontology");
-            $("#regionPicker").append(el);
+        if(dic[i].parts) {
+            for(var j = 0; j < dic[i].parts.length; j++) {
+                var tag = regionTag(dic[i].parts[j]);
+                var el = $(tag).addClass("ontology");
+                $("#regionPicker").append(el);
 
-            // handle single click on computers
-            el.click(singlePressOnRegion);
+                // handle single click on computers
+                el.click(singlePressOnRegion);
 
-            // handle double click on computers
-            el.dblclick(doublePressOnRegion);
-
-            el.on("touchstart",handleRegionTap);
+                el.on("touchstart",handleRegionTap);
+            }
         }
     }
 }
@@ -364,15 +364,14 @@ function appendContextTagsFromDictionary() {
     if( debug ) console.log("> appendContextTagsFromDictionary");
     var dic = contextDictionary.dictionary;
     for( var i = 0; i < dic.length; i++ ) {
-            var tag = regionTag("(" + (i+1) + ") - " + dic[i]);
-            var el = $(tag).addClass("context");
-            $("#contextPicker").append(el);
+        var tag = regionTag("(" + (i+1) + ") - " + dic[i]);
+        var el = $(tag).addClass("context");
+        $("#contextPicker").append(el);
 
-            // handle single click on computers
-            el.click(singlePressOnRegion);
+        // handle single click on computers
+        el.click(singlePressOnRegion);
 
-            el.on("touchstart",handleRegionTap);
-        // }
+        el.on("touchstart",handleRegionTap);
     }
 }
 
@@ -491,7 +490,7 @@ function clickHandler(event){
 		console.log(">    "+viewportPoint+")");
 	}
     event.stopHandlers = !navEnabled;
-    if( selectedTool == "draw" ) {
+    if( selectedTool == "draw" || selectedTool == "drawContext") {
         checkRegionSize(region);
     }
     else if( selectedTool == "addpoi") {
@@ -835,6 +834,9 @@ function mouseDown(x,y) {
             }
             break;
         }
+        case "drawContext":
+            // todo: add logic for context region
+            
         case "draw": {
             // Start a new region
             // if there was an older region selected, unselect it
@@ -908,7 +910,7 @@ function mouseDrag(x,y,dx,dy) {
         handle.point = point;
         commitMouseUndo();
     } else
-    if( selectedTool == "draw" ) {
+    if( selectedTool == "draw" || selectedTool == "drawContext") {
         region.path.add(point);
     } else
     if( selectedTool == "select" ) {
@@ -1385,6 +1387,7 @@ function toolSelection(event) {
         case "addregion":
         case "delregion":
         case "draw":
+        case "drawContext":
         case "rotate":
         case "draw-polygon":
         case "addpoi":
@@ -1911,8 +1914,13 @@ function loadConfiguration() {
             contextDictionary = dictionary;
             appendContextTagsFromDictionary();
         });
+        // load region dictionary
+        $.getJSON(config.regionDictionary, function(dictionary) {
+            regionDictionary = dictionary;
+            appendRegionTagsFromDictionary();
+        });
         
-        drawingTools = ["select", "draw", "draw-polygon", "simplify", "addpoint",
+        drawingTools = ["select", "draw", "draw-polygon", "drawContext", "simplify", "addpoint",
                         "delpoint", "addregion", "delregion", "splitregion", "rotate",
                         "save", "copy", "paste", "delete", "addpoi"];
         if( config.drawingEnabled == false ) {
@@ -2015,8 +2023,6 @@ function initMicrodraw() {
         $("#regionList").height($(window).height() - $("#regionList").offset().top);
         resizeAnnotationOverlay();
     });
-
-    appendRegionTagsFromOntology(Ontology);
 
     return def.promise();
 }
