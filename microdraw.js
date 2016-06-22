@@ -73,7 +73,11 @@ function newPoiArrow(point, name, pathInfo) {
 function newRegion(arg, imageNumber) {
 	if( debug ) console.log("> newRegion");
     var reg = {};
-	reg.uid = uniqueID();
+    if(arg.uid) {
+        reg.uid = arg.uid;
+    } else {
+        reg.uid = uniqueID();
+    }
 
 	if(arg.x && arg.y || arg.point) {
 		// point of interest
@@ -145,6 +149,33 @@ function newRegion(arg, imageNumber) {
 	// push the new region to the Regions array
 	ImageInfo[imageNumber]["Regions"].push(reg);
     return reg;
+}
+
+function findContextRegion(region1) {
+    for(var i=0; i<ImageInfo[0].Regions.length; i++) {
+        var isContextRegion = false;
+        var region2 = ImageInfo[0].Regions[i];
+        if(region1.uid != region2.uid) {
+            // find intersections
+            var intersections = region1.path.getIntersections(region2.path);
+            var isContextRegion = intersections.length > 0;
+
+            if(!isContextRegion) {
+                // check if region is drawn inside another region
+                if(region2.path.contains(region1.path.segments[0].point) ||
+                    region1.path.contains(region2.path.segments[0].point)) {
+                    isContextRegion = true;
+                }
+            }
+
+            if(isContextRegion) {
+                region1.context.push(region2.uid);
+                region2.context.push(region1.uid);
+            }
+        }
+    }
+    updateRegionList();
+    selectRegion(region1);
 }
 
 function removeRegion(reg, imageNumber) {
@@ -310,8 +341,13 @@ function regionTag(name,uid,context,fillColor) {
 
         if(context) {
             for (var i = 0; i < context.length; i++) {
+                var contextRegion = findRegionByUID(context[i]);
+                var contextName = "uid of context region unkown";
+                if(contextRegion) {
+                    contextName = contextRegion.name;
+                }
                 str += "<img class='eye' style='margin-right:10px' title='Remove context' id='removeContext_" + uid + "/" + i + "' src='img/remove.svg' />";
-                str += "<span class='context-name' id='context_" + uid + "/" + i + "'>" + context[i] + "</span></br>";
+                str += "<span class='context-name' id='context_" + uid + "/" + i + "'>" + contextName + "</span></br>";
             }
         }
 
@@ -824,9 +860,6 @@ function mouseDown(x,y) {
             }
             break;
         }
-        case "drawContext":
-            // todo: add logic for context region
-            var context = true;
         case "draw": {
             // Start a new region
             // if there was an older region selected, unselect it
@@ -836,11 +869,7 @@ function mouseDown(x,y) {
             // start a new region
             var path = new paper.Path({segments:[point]})
             path.strokeWidth = config.defaultStrokeWidth;
-            if(context) {
-
-            } else {
-                region = newRegion({path:path});
-            }
+            region = newRegion({path:path});
             // signal that a new region has been created for drawing
             newRegionFlag = true;
 
@@ -868,6 +897,7 @@ function mouseDown(x,y) {
                 if( hitResult && hitResult.item == region.path && hitResult.segment.point == region.path.segments[0].point ) {
                     // clicked on first point of current path
                     // --> close path and remove drawing flag
+                    findContextRegion(region);
                     finishDrawingPolygon(true);
                 } else {
                     // add point to region
@@ -904,7 +934,7 @@ function mouseDrag(x,y,dx,dy) {
         handle.point = point;
         commitMouseUndo();
     } else
-    if( selectedTool == "draw" || selectedTool == "drawContext") {
+    if( selectedTool == "draw") {
         region.path.add(point);
     } else
     if( selectedTool == "select" ) {
@@ -952,6 +982,11 @@ function mouseUp() {
 		    if( debug > 2 ) console.log( parseInt(final_segments/orig_segments*100) + "% segments conserved" );
     	}
     }
+
+    if(selectedTool == "draw") {
+        findContextRegion(region);
+    }
+
     paper.view.draw();
 }
 
@@ -1286,17 +1321,17 @@ function commitMouseUndo() {
 */
 
 function finishDrawingPolygon(closed){
-        // finished the drawing of the polygon
-        if( closed == true ) {
-            region.path.closed = true;
-            region.path.fillColor.alpha = config.defaultFillAlpha;
-        } else {
-            region.path.fillColor.alpha = 0;
-        }
-        region.path.fullySelected = true;
-        //region.path.smooth();
-        drawingPolygonFlag = false;
-        commitMouseUndo();
+    // finished the drawing of the polygon
+    if( closed == true ) {
+        region.path.closed = true;
+        region.path.fillColor.alpha = config.defaultFillAlpha;
+    } else {
+        region.path.fillColor.alpha = 0;
+    }
+    region.path.fullySelected = true;
+    //region.path.smooth();
+    drawingPolygonFlag = false;
+    commitMouseUndo();
 }
 
 function backToPreviousTool(prevTool) {
@@ -1662,12 +1697,15 @@ function loadJson() {
         var region;
         for(var i=0; i<json.length; i++) {
             region = json[i];
+            if(json[i].counter > counter) {
+                counter = json[i].counter;
+            }
             if(json[i].point) {
                 // create poi
                 var path = new paper.Path();
                 path.importJSON(json[i].path);
                 path.remove();
-                newRegion({point:new paper.Point(json[i].point[1], json[i].point[2]), path:path, context:json[i].context, name:json[i].name});
+                newRegion({point:new paper.Point(json[i].point[1], json[i].point[2]), path:path, context:json[i].context, name:json[i].name, uid:json[i].uid});
             } else {
                 // create region
                 var path = new paper.Path();
