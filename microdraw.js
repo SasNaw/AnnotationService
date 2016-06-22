@@ -169,8 +169,12 @@ function findContextRegion(region1) {
             }
 
             if(isContextRegion) {
-                region1.context.push(region2.uid);
-                region2.context.push(region1.uid);
+                if(region1.context[region1.context.length-1] != region2.uid) {
+                    region1.context.push(region2.uid);
+                }
+                if(region2.context[region2.context.length-1] != region1.uid) {
+                    region2.context.push(region1.uid);
+                }
             }
         }
     }
@@ -199,6 +203,17 @@ function removeRegion(reg, imageNumber) {
 		var	tag = $("#regionList > .region-tag#" + reg.uid);
 		$(tag).remove();
 	}
+
+    // remove context reference
+    for(var i=0; i<ImageInfo[0].Regions.length; i++) {
+        var context = ImageInfo[0].Regions[i].context;
+        for(var j=0; j<context.length; j++) {
+            if(context[j] == reg.uid) {
+                context.splice(j, 1);
+            }
+        }
+    }
+    updateRegionList();
 }
 
 function selectRegion(reg) {
@@ -341,11 +356,16 @@ function regionTag(name,uid,context,fillColor) {
 
         if(context) {
             for (var i = 0; i < context.length; i++) {
-                var contextRegion = findRegionByUID(context[i]);
-                var contextName = "uid of context region unkown";
-                if(contextRegion) {
-                    contextName = contextRegion.name;
+                var contextName = "error fetching context";
+                if(isNaN(context[i])) {
+                    contextName = context[i];
+                } else {
+                    var contextRegion = findRegionByUID(context[i]);
+                    if(contextRegion) {
+                        contextName = contextRegion.name;
+                    }
                 }
+
                 str += "<img class='eye' style='margin-right:10px' title='Remove context' id='removeContext_" + uid + "/" + i + "' src='img/remove.svg' />";
                 str += "<span class='context-name' id='context_" + uid + "/" + i + "'>" + contextName + "</span></br>";
             }
@@ -983,7 +1003,8 @@ function mouseUp() {
     	}
     }
 
-    if(selectedTool == "draw") {
+    if(selectedTool == "draw" ||
+        selectedTool == "select") {
         findContextRegion(region);
     }
 
@@ -1715,6 +1736,7 @@ function loadJson() {
                 newRegion(region);
             }
         }
+        updateRegionList();
     });
     console.log("< loading json from " + getJsonSource());
 }
