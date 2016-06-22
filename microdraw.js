@@ -108,16 +108,7 @@ function newRegion(arg, imageNumber) {
 		}
 	}
 
-    // set context
-    if(arg.context) {
-        reg.context = arg.context;
-    } else {
-        if(config.autoAssign) {
-            // auto assign with background region
-        } else {
-            reg.context = contextDictionary.default;
-        }
-    }
+    reg.context = arg.context ? arg.context : [];
 
 	if( imageNumber === undefined ) {
 		imageNumber = currentImage;
@@ -314,13 +305,18 @@ function regionTag(name,uid,context,fillColor) {
             "style='background-color:rgba(",
             parseInt(color.red*mult),",",parseInt(color.green*mult),",",parseInt(color.blue*mult),",0.67",
             ")'></div>",
-            "<span class='region-name' id='name_" + uid + "'>" + name + "</span>",
-            "</div>",
-            "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
-            // "<img class='eye' title='Remove context' id='delContext_" + uid + "' src='img/removeContext.svg' />",
-            "<span class='context-name' style='margin-left:20px' id='context_" + uid + "'>" + "(" + context + ")" + "</span>",
-            "</div>",
+            "<span class='region-name' id='name_" + uid + "'>" + name + "</span><br/>",
         ].join(" ");
+
+        if(context) {
+            for (var i = 0; i < context.length; i++) {
+                str += "<img class='eye' style='margin-right:10px' title='Remove context' id='removeContext_" + uid + "/" + i + "' src='img/remove.svg' />";
+                str += "<span class='context-name' id='context_" + uid + "/" + i + "'>" + context[i] + "</span></br>";
+            }
+        }
+
+        str += "<img class='eye' title='Add context' id='addContext_" + uid + "' src='img/add.svg' />";
+        str += "</div>";
     }
     else {
         color = regionHashColor(name);
@@ -357,21 +353,6 @@ function appendRegionTagsFromDictionary() {
                 el.on("touchstart",handleRegionTap);
             }
         }
-    }
-}
-
-function appendContextTagsFromDictionary() {
-    if( debug ) console.log("> appendContextTagsFromDictionary");
-    var dic = contextDictionary.dictionary;
-    for( var i = 0; i < dic.length; i++ ) {
-        var tag = regionTag("(" + (i+1) + ") - " + dic[i]);
-        var el = $(tag).addClass("context");
-        $("#contextPicker").append(el);
-
-        // handle single click on computers
-        el.click(singlePressOnRegion);
-
-        el.on("touchstart",handleRegionTap);
     }
 }
 
@@ -546,6 +527,8 @@ function handleNumInput(num) {
     }
 }
 
+var contextFlag = false;
+
 function singlePressOnRegion(event) {
     if( debug ) console.log("> singlePressOnRegion");
     if( debug ) console.log(event);
@@ -558,22 +541,19 @@ function singlePressOnRegion(event) {
     var reg;
     var clickedId = event.toElement.id;
 
-    if(el.hasClass("ontology") || el.hasClass("context")) {
+    if(el.hasClass("ontology")) {
         uid = $(".region-tag.selected").attr('id');
         reg = findRegionByUID(uid);
-        if (el.hasClass("ontology")) {
-            // Click on regionPicker (ontology selection list)
-            var newName = el.find(".region-name").text();
+        var newName = el.find(".region-name").text();
+        if(contextFlag) {
+            reg.context.push(newName);
+            contextFlag = false;
+            updateRegionList();
+            selectRegion(reg);
+        } else {
             changeRegionName(reg, newName);
-            $("div#regionPicker").appendTo($("body")).hide();
-        } else  {
-            // Click on contextPicker
-            var context = el.find(".region-name").text();
-            context = context.split(") - ")[1];
-            changeRegionContext(reg, context);
-            $("div#contextPicker").appendTo($("body")).hide();
-            enableNumKeys = false;
         }
+        $("div#regionPicker").appendTo($("body")).hide();
     } else {
         uid = $(this).attr('id');
 
@@ -597,14 +577,31 @@ function singlePressOnRegion(event) {
                 }
                 annotationStyle(reg);
             }
-        } else if(clickedId === "context_" + uid) {
-            // open context selection
-            reg = findRegionByUID(uid);
+        } else if(clickedId === "addContext_" + uid) {
+            var reg = findRegionByUID(this.id);
             if( reg ) {
                 selectRegion(reg);
-                contextPicker(this);
-            } else {
-                console.log("region undefined");
+                if( config.drawingEnabled ) {
+                    if( config.regionOntology == true ) {
+                        contextFlag = true;
+                        regionPicker(this);
+                    }
+                    else {
+                        var name = prompt("Region name", findRegionByUID(this.id).name);
+                        if( name != null ) {
+                            changeRegionName(findRegionByUID(this.id), name);
+                        }
+                    }
+                }
+            }
+        } else if(clickedId.indexOf("removeContext_" + uid) >= 0) {
+            var reg = findRegionByUID(this.id);
+            if( reg ) {
+                selectRegion(reg);
+                var index = clickedId.split("/")[1];
+                reg.context.splice(index, 1);
+                updateRegionList();
+                selectRegion(reg);
             }
         } else {
             // Click on regionList (list or annotated regions)
@@ -625,26 +622,15 @@ function doublePressOnRegion(event) {
     event.preventDefault();
 
     if( event.clientX > 20 ) {
-        if( event.clientX > 50 ) {
-            if( config.drawingEnabled ) {
-                if( config.regionOntology == true ) {
+        if( config.drawingEnabled ) {
+            if( config.regionOntology == true ) {
                 regionPicker(this);
+            }
+            else {
+                var name = prompt("Region name", findRegionByUID(this.id).name);
+                if( name != null ) {
+                    changeRegionName(findRegionByUID(this.id), name);
                 }
-                else {
-                    var name = prompt("Region name", findRegionByUID(this.id).name);
-                    if( name != null ) {
-                        changeRegionName(findRegionByUID(this.id), name);
-                    }
-                }
-            }   
-        }
-        else {
-            var reg = findRegionByUID(this.id);
-            if( reg.path.fillColor != null ) {
-                if( reg ) {
-                selectRegion(reg);
-                }
-                annotationStyle(reg);
             }
         }
     }
@@ -652,6 +638,10 @@ function doublePressOnRegion(event) {
         var reg = findRegionByUID(this.id);
         toggleRegion(reg);
     }
+}
+
+function showRegionPicker() {
+
 }
 
 var tap = false
@@ -836,7 +826,7 @@ function mouseDown(x,y) {
         }
         case "drawContext":
             // todo: add logic for context region
-            
+            var context = true;
         case "draw": {
             // Start a new region
             // if there was an older region selected, unselect it
@@ -846,7 +836,11 @@ function mouseDown(x,y) {
             // start a new region
             var path = new paper.Path({segments:[point]})
             path.strokeWidth = config.defaultStrokeWidth;
-            region = newRegion({path:path});
+            if(context) {
+
+            } else {
+                region = newRegion({path:path});
+            }
             // signal that a new region has been created for drawing
             newRegionFlag = true;
 
@@ -1909,13 +1903,8 @@ function loadConfiguration() {
     // load general microdraw configuration
     $.getJSON("configuration.json", function(data) {
         config = data;
-        // load context dictionary
-        $.getJSON(config.contextDictionary, function(dictionary) {
-            contextDictionary = dictionary;
-            appendContextTagsFromDictionary();
-        });
         // load region dictionary
-        $.getJSON(config.regionDictionary, function(dictionary) {
+        $.getJSON(config.dictionary, function(dictionary) {
             regionDictionary = dictionary;
             appendRegionTagsFromDictionary();
         });
