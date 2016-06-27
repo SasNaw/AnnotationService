@@ -1991,6 +1991,24 @@ function loadConfiguration() {
     return def.promise();
 }
 
+function loadMetaData() {
+    // load image header file
+    var headerFile = params.source.replace(".dzi", "_files/metadata.txt");
+    // get information from header file
+    var metadata = [];
+    $.get(headerFile, function(txt){
+        var lines = txt.split("\n");
+        for(var i=0; i<lines.length; i++) {
+            if(lines[i].indexOf(": ") > -1) {
+                var line = lines[i].split(": ");
+                metadata.push({"name":line[0], "value":line[1]});
+            }
+        }
+        addScalebar(metadata);
+        return metadata;
+    });
+}
+
 function initMicrodraw() {
 
     if( debug ) console.log("> initMicrodraw promise");
@@ -2082,12 +2100,48 @@ function printImgInfo() {
 	// console.log(viewer.overlaysContainer.childNodes[0].x, viewer.overlaysContainer.childNodes[0].y);
 }
 
+function addScalebar(metadata) {
+    var mpp_x;
+    var mpp_y;
+    var objPower;
+    var orgWidth;
+    for(var i=0; i<metadata.length; i++) {
+        if(metadata[i].name == "openslide.mpp-x") {
+            mpp_x = metadata[i].value;
+        } else if(metadata[i].name == "openslide.mpp-y") {
+            mpp_y = metadata[i].value;
+        } else if(metadata[i].name == "openslide.objective-power") {
+            objPower = metadata[i].value;
+        } else if(metadata[i].name == "width") {
+            orgWidth = metadata[i].value;
+        }
+    }
+
+    var ppm = (objPower/(mpp_x * mpp_y)) * 100000;
+
+    if(!isNaN(ppm)) {
+        // add the scalebar
+        viewer.scalebar({
+            type: OpenSeadragon.ScalebarType.MICROSCOPE,
+            minWidth:'150px',
+            pixelsPerMeter:ppm,
+            color:'black',
+            fontColor:'black',
+            backgroundColor:"rgba(255,255,255,0.5)",
+            barThickness:4,
+            location: OpenSeadragon.ScalebarLocation.TOP_RIGHT,
+            xOffset:5,
+            yOffset:5
+        });
+    }
+}
+
 function initMicrodrawXML(obj) {
 	// set up the ImageInfo array and imageOrder array
     console.log(obj);
 
     currentImage = 0;
-	ImageInfo[currentImage] = {"source": params.source, "Regions": [], "projectID": undefined};
+	ImageInfo[currentImage] = {"source": params.source, "Regions": [], "projectID": undefined, "metadata":loadMetaData()};
 
 
     // set default values for new regions (general configuration)
@@ -2117,23 +2171,6 @@ function initMicrodrawXML(obj) {
 	// open the currentImage
 	viewer.open(ImageInfo[0]["source"]);
 
-	// add the scalebar
-	if(showScalebar) {
-		viewer.scalebar({
-			type: OpenSeadragon.ScalebarType.MICROSCOPE,
-			minWidth:'150px',
-			//pixelsPerMeter:obj.pixelsPerMeter,
-			pixelsPerMeter: 1.0,
-			color:'black',
-			fontColor:'black',
-			backgroundColor:"rgba(255,255,255,0.5)",
-			barThickness:4,
-			location: OpenSeadragon.ScalebarLocation.TOP_RIGHT,
-			xOffset:5,
-			yOffset:5
-		});
-	}
-	
 	// add handlers: update slice name, animation, page change, mouse actions
 	viewer.addHandler('open',function(){
 		initAnnotationOverlay();
