@@ -573,16 +573,6 @@ function dragEndHandler(event){
     }
 }
 
-function handleNumInput(num) {
-    console.log(region.uid);
-    if(num == 0) num = 10;
-    if(num <= contextDictionary.dictionary.length) {
-        changeRegionContext(region, contextDictionary.dictionary[num-1]);
-        $("div#contextPicker").appendTo($("body")).hide();
-        enableNumKeys = false;
-    }
-}
-
 var contextFlag = false;
 
 function singlePressOnRegion(event) {
@@ -736,12 +726,7 @@ function mouseDown(x,y) {
     handle = null;
 
     switch( selectedTool ) {
-        case "select":
-        case "addpoint":
-        case "delpoint":
-        case "addregion":
-        case "delregion":
-        case "splitregion": {
+        case "select": {
             var hitResult = paper.project.hitTest(point, {
                     tolerance: 10,
                     stroke: true,
@@ -782,94 +767,7 @@ function mouseDown(x,y) {
                         handle = hitResult.segment.point;
                         handle.point = point;
                     }
-                    if( selectedTool == "delpoint" ) {
-                        if(!region.point) {
-                            hitResult.segment.remove();
-                            commitMouseUndo();
-                        }
-                    }
                 }
-                else if( hitResult.type == 'stroke' && selectedTool == "addpoint" ) {
-                    if(!region.point) {
-                        region.path
-                            .curves[hitResult.location.index]
-                            .divide(hitResult.location);
-                        region.path.fullySelected = true;
-                        commitMouseUndo();
-                        paper.view.draw();
-                    }
-                }
-                else if( selectedTool == "addregion" ) {
-                    if( prevRegion ) {
-                        if(!prevRegion.point && !region.point) {
-                            var newPath = region.path.unite(prevRegion.path);
-                            removeRegion(prevRegion);
-                            region.path.remove();
-                            region.path = newPath;
-                            updateRegionList();
-                            selectRegion(region);
-                            paper.view.draw();
-                            commitMouseUndo();
-                            backToSelect();
-                        }
-                    }
-                }
-                else if( selectedTool == "delregion" ) {
-                    if( prevRegion ) {
-                        if(!prevRegion.point && !region.point) {
-                            var newPath = prevRegion.path.subtract(region.path);
-                            removeRegion(prevRegion);
-                            prevRegion.path.remove();
-                            newRegion({path:newPath});
-                            updateRegionList();
-                            selectRegion(region);
-                            paper.view.draw();
-                            commitMouseUndo();
-                            backToSelect();
-                        }
-                    }
-                }
-                else if( selectedTool == "splitregion" ) {
-                    /*selected region is prevRegion! 
-                    region is the region that should be split based on prevRegion
-                    newRegionPath is outlining that part of region which has not been overlaid by prevRegion
-                    i.e. newRegion is what was region
-                    and prevRegion color should go to the other part*/
-                    if( prevRegion ) {
-                        if(!prevRegion.point && !region.point) {
-                            var prevColor = prevRegion.path.fillColor;
-                            //color of the overlaid part
-                            var color = region.path.fillColor;
-                            var newPath = region.path.divide(prevRegion.path);
-
-                            removeRegion(prevRegion);
-                            region.path.remove();
-
-                            region.path = newPath;
-                            var newReg;
-                            for( i = 0; i < newPath._children.length; i++ )
-                            {
-                                if( i == 0 ) {
-                                    region.path = newPath._children[i];
-                                }
-                                else {
-                                    newReg = newRegion({path:newPath._children[i]});
-                                }
-                            }
-                            region.path.fillColor = color;
-                            if( newReg ) {
-                                newReg.path.fillColor = prevColor;
-                            }
-                            updateRegionList();
-                            selectRegion(region);
-                            paper.view.draw();
-
-                            commitMouseUndo();
-                            backToSelect();
-                        }
-                    }
-                }
-                break;
             }
             if( hitResult == null && region ) {
                 //deselect paths
@@ -927,11 +825,6 @@ function mouseDown(x,y) {
             }
             break;
         }
-        case "rotate":
-            if(region != null) {
-                region.origin = point;
-            }
-            break;
     }
     paper.view.draw();
 }
@@ -970,21 +863,6 @@ function mouseDrag(x,y,dx,dy) {
             }
         }
     }
-    if( selectedTool == "rotate" ) {
-        event.stopHandlers = true;
-        var degree = parseInt(dpoint.x);
-        var i;
-        for( i in ImageInfo[currentImage]["Regions"] ) {
-        	if(ImageInfo[currentImage]["Regions"][i].path) {
-        		if( ImageInfo[currentImage]["Regions"][i].path.selected ) {
-                    if(!ImageInfo[currentImage]["Regions"][i].point) {
-                        ImageInfo[currentImage]["Regions"][i].path.rotate(degree, region.origin);
-                        commitMouseUndo();
-                    }
-		        }
-        	}
-        }
-    }
     paper.view.draw();
 }
 
@@ -1011,63 +889,7 @@ function mouseUp() {
     paper.view.draw();
 }
 
-/*** simplify the region path 
-***/
-function simplify() {
-    if( region !== null ) {
-        if( debug ) console.log("> simplifying region path");
-
-        var orig_segments = region.path.segments.length;
-        if(!region.point) {
-            region.path.simplify();
-        }
-        var final_segments = region.path.segments.length;
-        console.log( parseInt(final_segments/orig_segments*100) + "% segments conserved" );
-        paper.view.draw();
-    }
-}
-
-/*** flip region along y-axis around its center point
-***/
-function flipRegion(reg) {
-    if( region !== null ) {
-        if( debug ) console.log("> flipping region");
-
-	    var i;
-	    for( i in ImageInfo[currentImage]["Regions"] ) {
-	    	if(ImageInfo[currentImage]["Regions"][i].path) {
-				if( ImageInfo[currentImage]["Regions"][i].path.selected ) {
-			        ImageInfo[currentImage]["Regions"][i].path.scale(-1, 1);
-			    }
-	    	}
-    	}
-		paper.view.draw();
-    }
-}
-
-function toggleHandles() {
-    console.log("> toggleHandles");
-    if (region != null) {
-        if(!region.point) {
-            if (region.path.hasHandles()) {
-                if (confirm('Do you really want to remove the handles?')) {
-                    var undoInfo = getUndo();
-                    region.path.clearHandles();
-                    saveUndo(undoInfo);
-                }
-            }
-            else {
-                var undoInfo = getUndo();
-                region.path.smooth();
-                saveUndo(undoInfo);
-            }
-        }
-        paper.view.draw();
-    }
-
-}
-
-/*** 
+/***
     the following functions serve changing the annotation style
 ***/
 var currentColorRegion;
@@ -1432,13 +1254,8 @@ function toolSelection(event) {
 
     switch(selectedTool) {
         case "select":
-        case "addpoint":
-        case "delpoint":
-        case "addregion":
-        case "delregion":
         case "draw":
         case "drawContext":
-        case "rotate":
         case "draw-polygon":
         case "addpoi":
             navEnabled = false;
@@ -1446,10 +1263,6 @@ function toolSelection(event) {
         case "navigate":
             navEnabled = true;
             handle = null;
-            break;
-        case "delete":
-            cmdDeleteSelected();
-            backToPreviousTool(prevTool);
             break;
         case "save":
             // microdrawDBSave();
@@ -1469,26 +1282,12 @@ function toolSelection(event) {
             //backToPreviousTool(prevTool);
             backToSelect();
             break;
-        case "simplify":
-            simplify(region);
-            //backToPreviousTool(prevTool);
-            backToSelect();
-            break;
-        case "flip":
-            flipRegion(region);
-            //backToPreviousTool(prevTool);
-            backToSelect();
-            break;
         case "closeMenu":
             toggleMenu();
             backToPreviousTool(prevTool);
             break;
         case "openMenu":
             toggleMenu();
-            backToPreviousTool(prevTool);
-            break;
-        case "handle":
-            toggleHandles();
             backToPreviousTool(prevTool);
             break;
     }
@@ -1969,8 +1768,7 @@ function loadConfiguration() {
             appendRegionTagsFromDictionary();
         });
         
-        drawingTools = ["select", "draw", "draw-polygon", "drawContext", "simplify", "addpoint",
-                        "delpoint", "addregion", "delregion", "splitregion", "rotate",
+        drawingTools = ["select", "draw", "draw-polygon", "drawContext",
                         "save", "copy", "paste", "delete", "addpoi"];
         if( config.drawingEnabled == false ) {
             // remove drawing tools from ui
@@ -2196,18 +1994,6 @@ function initMicrodrawXML(obj) {
     viewer.addHandler('zoom', function(event){
         console.log("zoom: " + viewer.viewport.getZoom());
     });
-
-    document.onkeypress = function(e) {
-        e = e || window.event;
-        var charCode = (typeof e.which == "number") ? e.which : e.keyCode;
-        if (charCode) {
-            if(charCode >= 48 && charCode <= 57) {
-                if(enableNumKeys) {
-                    handleNumInput(String.fromCharCode(charCode));
-                }
-            }
-        }
-    };
 }
 
 function toggleMenu () {
