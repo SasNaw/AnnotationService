@@ -31,11 +31,6 @@ var isIOS = navigator.platform.match(/(iPhone|iPod|iPad)/i)?true:false;
 /*** 
 	AnnotationService variables
 */
-var showScalebar = false;
-var width;
-var enableNumKeys = false;
-
-var contextDictionary = [];
 var regionDictionary = [];
 
 /***1
@@ -153,7 +148,6 @@ function newRegion(arg, imageNumber) {
 
 function findContextRegion(region1) {
     for(var i=0; i<ImageInfo[0].Regions.length; i++) {
-        var isContextRegion = false;
         var region2 = ImageInfo[0].Regions[i];
         if(region1.uid != region2.uid) {
             // find intersections
@@ -169,10 +163,10 @@ function findContextRegion(region1) {
             }
 
             if(isContextRegion) {
-                if(region1.context[region1.context.length-1] != region2.uid) {
+                if(!isRegionAlreadyReferenced(region1, region2)) {
                     region1.context.push(region2.uid);
                 }
-                if(region2.context[region2.context.length-1] != region1.uid) {
+                if(!isRegionAlreadyReferenced(region2, region1)) {
                     region2.context.push(region1.uid);
                 }
             }
@@ -180,6 +174,17 @@ function findContextRegion(region1) {
     }
     updateRegionList();
     selectRegion(region1);
+}
+
+function isRegionAlreadyReferenced(region1, region2) {
+    var region2Name = findRegionByUID(region2.uid);
+    for(var i=0; i<region1.context.length; i++) {
+        var region1Name = findRegionByUID(region1.context[i]);
+        if(region1Name == region2Name) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function removeRegion(reg, imageNumber) {
@@ -419,14 +424,6 @@ function regionPicker(parent) {
     $("div#regionPicker").show();
 }
 
-function contextPicker(parent) {
-    if( debug ) console.log("> contextPicker");
-
-    $("div#contextPicker").appendTo("body");
-    enableNumKeys = true;
-    $("div#contextPicker").show();
-}
-
 function changeRegionName(reg,name) {
     if( debug ) console.log("> changeRegionName");
 
@@ -444,15 +441,7 @@ function changeRegionName(reg,name) {
     $(".region-tag#" + reg.uid + ">.region-color").css('background-color','rgba('+color.red+','+color.green+','+color.blue+',0.67)');
 }
 
-function changeRegionContext(reg,context) {
-    if( debug ) console.log("> changeRegionContext");
-    reg.context = context;
-
-    // Update region tag
-    $(".region-tag#" + reg.uid + ">.context-name").text("(" + context + ")");
-}
-
-/*** toggle visibility of region 
+/*** toggle visibility of region
 ***/
 function toggleRegion(reg) {
     if( region !== null ) {
@@ -527,7 +516,7 @@ function clickHandler(event){
 		console.log(">    "+viewportPoint+")");
 	}
     event.stopHandlers = !navEnabled;
-    if( selectedTool == "draw" || selectedTool == "drawContext") {
+    if( selectedTool == "draw") {
         checkRegionSize(region);
     }
     else if( selectedTool == "addpoi") {
@@ -686,10 +675,6 @@ function doublePressOnRegion(event) {
     }
 }
 
-function showRegionPicker() {
-
-}
-
 var tap = false
 function handleRegionTap(event) {
 /*
@@ -725,107 +710,99 @@ function mouseDown(x,y) {
 
     handle = null;
 
-    switch( selectedTool ) {
-        case "select": {
-            var hitResult = paper.project.hitTest(point, {
-                    tolerance: 10,
-                    stroke: true,
-                    segments: true,
-                    fill: true,
-                    handles: true
-                });
+    if(selectedTool == "select") {
+        var hitResult = paper.project.hitTest(point, {
+            tolerance: 10,
+            stroke: true,
+            segments: true,
+            fill: true,
+            handles: true
+        });
 
-            newRegionFlag = false;
-            if( hitResult ) {
-                var i;
-                for( i = 0; i < ImageInfo[currentImage]["Regions"].length; i++ ) {
-                    if( ImageInfo[currentImage]["Regions"][i].path == hitResult.item ) {
-                        re = ImageInfo[currentImage]["Regions"][i];
-                        break;
-                    }
-                }
-
-                // select path 
-                if( region && region != re ) {
-            		if(region.path) {
-            			region.path.selected = false;
-            		}
-                    prevRegion = region;
-                }
-                selectRegion(re);
-
-                if( hitResult.type == 'handle-in' ) {
-                    handle = hitResult.segment.handleIn;
-                    handle.point = point;
-                }
-                else if( hitResult.type == 'handle-out' ) {
-                    handle = hitResult.segment.handleOut;
-                    handle.point = point;
-                }
-                else if( hitResult.type == 'segment' ) {
-                    if( selectedTool == "select" ) {
-                        handle = hitResult.segment.point;
-                        handle.point = point;
-                    }
+        newRegionFlag = false;
+        if( hitResult ) {
+            var i;
+            for( i = 0; i < ImageInfo[currentImage]["Regions"].length; i++ ) {
+                if( ImageInfo[currentImage]["Regions"][i].path == hitResult.item ) {
+                    re = ImageInfo[currentImage]["Regions"][i];
+                    break;
                 }
             }
-            if( hitResult == null && region ) {
-                //deselect paths
+
+            // select path
+            if( region && region != re ) {
                 if(region.path) {
-		            region.path.selected = false;
+                    region.path.selected = false;
                 }
-                region = null;
+                prevRegion = region;
             }
-            break;
+            selectRegion(re);
+
+            if( hitResult.type == 'handle-in' ) {
+                handle = hitResult.segment.handleIn;
+                handle.point = point;
+            }
+            else if( hitResult.type == 'handle-out' ) {
+                handle = hitResult.segment.handleOut;
+                handle.point = point;
+            }
+            else if( hitResult.type == 'segment' ) {
+                handle = hitResult.segment.point;
+                handle.point = point;
+            }
         }
-        case "draw": {
-            // Start a new region
-            // if there was an older region selected, unselect it
+        if( hitResult == null && region ) {
+            //deselect paths
+            if(region.path) {
+                region.path.selected = false;
+            }
+            region = null;
+        }
+    } else if(selectedTool == "draw") {
+        // Start a new region
+        // if there was an older region selected, unselect it
+        if(region && region.path ) {
+            region.path.selected = false;
+        }
+        // start a new region
+        var path = new paper.Path({segments:[point]})
+        path.strokeWidth = config.defaultStrokeWidth;
+        region = newRegion({path:path});
+        // signal that a new region has been created for drawing
+        newRegionFlag = true;
+
+        commitMouseUndo();
+    } else if(selectedTool == "draw-polygon") {
+        // is already drawing a polygon or not?
+        if( drawingPolygonFlag == false ) {
+            // deselect previously selected region
             if(region && region.path ) {
                 region.path.selected = false;
             }
-            // start a new region
+
+            // Start a new Region with alpha 0
             var path = new paper.Path({segments:[point]})
             path.strokeWidth = config.defaultStrokeWidth;
             region = newRegion({path:path});
-            // signal that a new region has been created for drawing
-            newRegionFlag = true;
-
+            region.path.fillColor.alpha = 0;
+            region.path.selected = true;
+            drawingPolygonFlag = true;
             commitMouseUndo();
-            break;
-        }
-        case "draw-polygon": {
-            // is already drawing a polygon or not?
-            if( drawingPolygonFlag == false ) {
-                // deselect previously selected region
-                if(region && region.path ) {
-				    region.path.selected = false;
-				}
-
-                // Start a new Region with alpha 0
-                var path = new paper.Path({segments:[point]})
-                path.strokeWidth = config.defaultStrokeWidth;
-                region = newRegion({path:path});
-                region.path.fillColor.alpha = 0;
-                region.path.selected = true;
-                drawingPolygonFlag = true;
-                commitMouseUndo();
+        } else {
+            var hitResult = paper.project.hitTest(point, {tolerance:10, segments:true});
+            if( hitResult && hitResult.item == region.path && hitResult.segment.point == region.path.segments[0].point ) {
+                // clicked on first point of current path
+                // --> close path and remove drawing flag
+                findContextRegion(region);
+                finishDrawingPolygon(true);
             } else {
-                var hitResult = paper.project.hitTest(point, {tolerance:10, segments:true});
-                if( hitResult && hitResult.item == region.path && hitResult.segment.point == region.path.segments[0].point ) {
-                    // clicked on first point of current path
-                    // --> close path and remove drawing flag
-                    findContextRegion(region);
-                    finishDrawingPolygon(true);
-                } else {
-                    // add point to region
-                    region.path.add(point);
-                    commitMouseUndo();
-                }
+                // add point to region
+                region.path.add(point);
+                commitMouseUndo();
             }
-            break;
         }
     }
+
     paper.view.draw();
 }
 
@@ -846,23 +823,22 @@ function mouseDrag(x,y,dx,dy) {
         handle.y += point.y-handle.point.y;
         handle.point = point;
         commitMouseUndo();
-    } else
-    if( selectedTool == "draw") {
+    } else if( selectedTool == "draw") {
         region.path.add(point);
-    } else
-    if( selectedTool == "select" ) {
+    } else if( selectedTool == "select") {
         // event.stopHandlers = true;
         for( i in ImageInfo[currentImage]["Regions"] ) {
             var reg = ImageInfo[currentImage]["Regions"][i];
             if(reg.path) {
-            	if( reg.path.selected ) {
-		            reg.path.position.x += dpoint.x;
-		            reg.path.position.y += dpoint.y;
-		            commitMouseUndo();
-		        }
+                if( reg.path.selected ) {
+                    reg.path.position.x += dpoint.x;
+                    reg.path.position.y += dpoint.y;
+                    commitMouseUndo();
+                }
             }
         }
     }
+
     paper.view.draw();
 }
 
@@ -881,8 +857,7 @@ function mouseUp() {
     	}
     }
 
-    if(selectedTool == "draw" ||
-        selectedTool == "select") {
+    if(selectedTool == "draw" || selectedTool == "select") {
         findContextRegion(region);
     }
 
@@ -1737,7 +1712,7 @@ function initShortCutHandler() {
         if( shortCuts[key] ) {
             var callback = shortCuts[key];
             callback();
-            e.preventDefault();
+            // e.preventDefault();
         }
     });
 }
@@ -1829,7 +1804,7 @@ function initMicrodraw() {
         shortCutHandler({pc:'^ a',mac:'cmd a'},function() { console.log("select all!")});
         shortCutHandler({pc:'^ c',mac:'cmd c'},cmdCopy);
         shortCutHandler({pc:'#46',mac:'#8'},cmdDeleteSelected);  // delete key
-        shortCutHandler({pc:'#9',mac:'#9'},printImgInfo);  // tab key
+        // shortCutHandler({pc:'#9',mac:'#9'},printImgInfo);  // tab key
         shortCutHandler({pc:'#27',mac:'#9'},clearToolSelection); // esc key
     }
 
@@ -1890,12 +1865,6 @@ function initMicrodraw() {
     });
 
     return def.promise();
-}
-
-function printImgInfo() {
-	console.log("regions:");
-	console.log(ImageInfo[0].Regions);
-	// console.log(viewer.overlaysContainer.childNodes[0].x, viewer.overlaysContainer.childNodes[0].y);
 }
 
 function addScalebar(metadata) {
@@ -2014,4 +1983,39 @@ $(function() {
         params = deparam();
         initMicrodraw();
     });
+});
+
+// key listener
+var tmpTool;
+$(document).keydown(function(e) {
+    if(e.keyCode == 16) {
+        // shift
+        tmpTool = selectedTool;
+        // selectedTool = "select";
+        selectedTool = "select";
+        navEnabled = false;
+        selectTool();
+        shift = true;
+    } else if(e.keyCode == 17) {
+        // ctrl
+        tmpTool = selectedTool;
+        selectedTool = "draw";
+        navEnabled = false;
+        selectTool();
+    } else if(e.keyCode == 18) {
+        // ctrl
+        tmpTool = selectedTool;
+        selectedTool = "draw-polygon";
+        navEnabled = false;
+        selectTool();
+    }
+});
+
+$(document).keyup(function(e) {
+    if(e.keyCode == 16 || e.keyCode == 17 || e.keyCode == 18) {
+        // shift || ctrl || alt
+        selectedTool = tmpTool;
+        navEnabled = true;
+        selectTool();
+    }
 });
