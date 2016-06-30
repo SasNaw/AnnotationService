@@ -258,6 +258,27 @@ function selectRegion(reg) {
     if(debug) console.log("< selectRegion");
 }
 
+function selectNextRegion() {
+    var regions = ImageInfo[0].Regions;
+    if(region) {
+        for(var i=0; i<regions.length; i++) {
+            if(region.uid == regions[i].uid) {
+                if(i+1 < regions.length) {
+                    selectRegion(regions[i+1])
+                    break;
+                } else {
+                    selectRegion(regions[0]);
+                    break;
+                }
+            }
+        }
+    } else {
+        if(regions.length > 0) {
+            selectRegion(regions[0]);
+        }
+    }
+}
+
 function findRegionByUID(uid) {
     if( debug ) console.log("> findRegionByUID");
 
@@ -1804,8 +1825,6 @@ function initMicrodraw() {
         shortCutHandler({pc:'^ a',mac:'cmd a'},function() { console.log("select all!")});
         shortCutHandler({pc:'^ c',mac:'cmd c'},cmdCopy);
         shortCutHandler({pc:'#46',mac:'#8'},cmdDeleteSelected);  // delete key
-        // shortCutHandler({pc:'#9',mac:'#9'},printImgInfo);  // tab key
-        shortCutHandler({pc:'#27',mac:'#9'},clearToolSelection); // esc key
     }
 
     // Configure currently selected tool
@@ -1988,32 +2007,48 @@ $(function() {
 // key listener
 var tmpTool;
 $(document).keydown(function(e) {
-    if(e.keyCode == 16) {
+    if(e.keyCode == 9) {
+        // tab
+        e.preventDefault();
+        selectNextRegion();
+    } else if(e.keyCode == 16) {
         // shift
-        tmpTool = selectedTool;
-        // selectedTool = "select";
-        selectedTool = "select";
-        navEnabled = false;
-        selectTool();
-        shift = true;
+        selectToolOnKeyPress("addpoi");
     } else if(e.keyCode == 17) {
         // ctrl
-        tmpTool = selectedTool;
-        selectedTool = "draw";
-        navEnabled = false;
-        selectTool();
-    } else if(e.keyCode == 18) {
-        // ctrl
-        tmpTool = selectedTool;
-        selectedTool = "draw-polygon";
-        navEnabled = false;
-        selectTool();
+        selectToolOnKeyPress("draw");
+    } else if(e.keyCode == 18 || e.keyCode == 225) {
+        // alt || alt gr
+        selectToolOnKeyPress("select");
+    } else if(e.keyCode == 27) {
+        // esc
+        clearToolSelection();
+    } else if(e.keyCode == 68) {
+        // ctrl + d
+        if(e.ctrlKey) {
+            e.preventDefault();
+            selectedTool = selectedTool == "draw" ? "draw-polygon" : "draw";
+            selectTool();
+        }
+    } else if(e.keyCode == 83) {
+        // ctrl + s
+        if(e.ctrlKey) {
+            e.preventDefault();
+            saveJson();
+        }
     }
 });
 
+function selectToolOnKeyPress(id) {
+    tmpTool = selectedTool;
+    selectedTool = id;
+    navEnabled = false;
+    selectTool();
+}
+
 $(document).keyup(function(e) {
-    if(e.keyCode == 16 || e.keyCode == 17 || e.keyCode == 18) {
-        // shift || ctrl || alt
+    if(e.keyCode == 16 || e.keyCode == 17 || e.keyCode == 18 || e.keyCode == 225) {
+        // shift || ctrl || alt || alt gr
         selectedTool = tmpTool;
         navEnabled = true;
         selectTool();
