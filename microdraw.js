@@ -36,11 +36,10 @@ var regionDictionary = [];
 /***1
     Region handling functions
 */
-function newPoiArrow(point, name, pathInfo) {
+function newPoi(point, name, pathInfo) {
+    var path = new paper.Path();
     var x = point.x;
     var y = point.y;
-
-    var path = new paper.Path();
     if(pathInfo) {
         path.strokeWidth = pathInfo.strokeWidth ? pathInfo.strokeWidth : config.defaultStrokeWidth;
         path.strokeColor = pathInfo.strokeColor ? pathInfo.strokeColor : config.defaultStrokeColor;
@@ -57,9 +56,9 @@ function newPoiArrow(point, name, pathInfo) {
     path.selected = false;
 
     path.add(new paper.Point(x, y));
-    path.add(new paper.Point(x-3, y-8));
-    path.add(new paper.Point(x, y-6));
-    path.add(new paper.Point(x+3, y-8));
+    path.add(new paper.Point(x-1, y-3));
+    path.add(new paper.Point(x, y-2));
+    path.add(new paper.Point(x+1, y-3));
     path.closed = true;
 
     return path;
@@ -86,7 +85,7 @@ function newRegion(arg, imageNumber) {
         } else {
 	    	reg.point = arg;
         }
-        reg.path = newPoiArrow(reg.point, reg.name, arg.path)
+        reg.path = newPoi(reg.point, reg.name, arg.path)
 	}
 	else {
 		// regular region
@@ -260,23 +259,16 @@ function selectRegion(reg) {
 
 function selectNextRegion() {
     var regions = ImageInfo[0].Regions;
+    var index = 0;
     if(region) {
         for(var i=0; i<regions.length; i++) {
-            if(region.uid == regions[i].uid) {
-                if(i+1 < regions.length) {
-                    selectRegion(regions[i+1])
-                    break;
-                } else {
-                    selectRegion(regions[0]);
-                    break;
-                }
+            if(region.uid == regions[i].uid && i+1 < regions.length) {
+                index = i + 1;
+                break;
             }
         }
-    } else {
-        if(regions.length > 0) {
-            selectRegion(regions[0]);
-        }
     }
+    selectRegion(regions[index]);
 }
 
 function findRegionByUID(uid) {
@@ -553,6 +545,7 @@ function addPoi(event) {
 	var webPoint = event.position;
     var point = paper.view.viewToProject(new paper.Point(webPoint.x,webPoint.y));
 	newRegion(point);
+    paper.view.draw();
 }
 
 function pressHandler(event){
@@ -822,13 +815,25 @@ function mouseDown(x,y) {
                 commitMouseUndo();
             }
         }
+    } else if(selectedTool == "distance") {
+        if(ruler) {
+            ruler.remove();
+        }
+        ruler = new paper.Path({segments:[point]});
+        var zoom = Math.sqrt(viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true)));
+        console.log("debug: zoom = " + zoom, ", iz = " + viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true)));
+
+        ruler.strokeWidth = zoom < 0.9 ? 1 - zoom : 0.1;
+        ruler.strokeColor = config.defaultStrokeColor;
+        ruler.strokeColor.alpha = 0.5;
+        ruler.selected = true;
     }
 
     paper.view.draw();
 }
 
 function mouseDrag(x,y,dx,dy) {
-    //if( debug ) console.log("> mouseDrag");
+    if( debug ) console.log("> mouseDrag");
 
     // transform screen coordinate into world coordinate
     var point = paper.view.viewToProject(new paper.Point(x,y));
@@ -854,17 +859,44 @@ function mouseDrag(x,y,dx,dy) {
                 if( reg.path.selected ) {
                     reg.path.position.x += dpoint.x;
                     reg.path.position.y += dpoint.y;
-                    commitMouseUndo();
                 }
             }
+        }
+    }
+    if(selectedTool == "distance") {
+        if(ruler) {
+            if(ruler.segments[1]) {
+                ruler.removeSegment(1);
+            }
+            ruler.add(point);
+
+            var cpos = { top: y + 15, left: x + 15 };
+            $("body").append("<div id='distance-tooltip' style='position:fixed; font-size:30px;" +
+                " color:rgba(255,255,255,1); background-color:rgba(0,0,0,0.5)'></div>");
+            $('#distance-tooltip').offset(cpos);
+            $("#distance-tooltip").html(getDistance() + " μm");
         }
     }
 
     paper.view.draw();
 }
 
+function getDistance() {
+    var point1 = ruler.segments[0].point;
+    var point2 = ruler.segments[1].point;
+    var pxDistance = Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
+    var mpp = (mpp_x * mpp_y) / objPower;
+
+    return Math.round(((pxDistance * mpp) * 1000) * 100) / 100;
+}
+
 function mouseUp() {
     if( debug ) console.log("> mouseUp");
+
+    var element = document.getElementById("distance-tooltip");
+    if(element) {
+        element.parentNode.removeChild(element);
+    }
 
     if( newRegionFlag == true ) {
     	if(region.path) {
@@ -880,6 +912,10 @@ function mouseUp() {
 
     if(selectedTool == "draw" || selectedTool == "select") {
         findContextRegion(region);
+    }
+
+    if(ruler) {
+        ruler.remove();
     }
 
     paper.view.draw();
@@ -1251,9 +1287,11 @@ function toolSelection(event) {
     switch(selectedTool) {
         case "select":
         case "draw":
-        case "drawContext":
         case "draw-polygon":
         case "addpoi":
+            navEnabled = false;
+            break;
+        case "distance":
             navEnabled = false;
             break;
         case "navigate":
@@ -1532,30 +1570,10 @@ function loadJson() {
             }
         }
         updateRegionList();
+        paper.view.draw();
     });
     console.log("< loading json from " + getJsonSource());
 }
-
-function load() {
-    if( debug ) console.log("> load");
-
-    var i,obj,reg;
-    if( localStorage.Microdraw ) {
-        console.log("Loading data from localStorage");
-        obj = JSON.parse(localStorage.Microdraw);
-        for( i = 0; i < obj.Regions.length; i++ ) {
-            var reg = {};
-            var json;
-            reg.name = obj.Regions[i].name;
-            json = obj.Regions[i].path;
-            reg.path = new paper.Path();
-            reg.path.importJSON(json);
-            newRegion({name:reg.name,path:reg.path});
-        }
-        paper.view.draw();
-    }
-}
-
 
 /***5
     Initialisation
@@ -1764,8 +1782,7 @@ function loadConfiguration() {
             appendRegionTagsFromDictionary();
         });
         
-        drawingTools = ["select", "draw", "draw-polygon", "drawContext",
-                        "save", "copy", "paste", "delete", "addpoi"];
+        drawingTools = ["select", "draw", "draw-polygon", "save", "addpoi"];
         if( config.drawingEnabled == false ) {
             // remove drawing tools from ui
             for( var i = 0; i < drawingTools.length; i++ ){
@@ -1885,11 +1902,10 @@ function initMicrodraw() {
 
     return def.promise();
 }
-
+var mpp_x;
+var mpp_y;
+var objPower;
 function addScalebar(metadata) {
-    var mpp_x;
-    var mpp_y;
-    var objPower;
     var orgWidth;
     for(var i=0; i<metadata.length; i++) {
         if(metadata[i].name == "openslide.mpp-x") {
@@ -2006,6 +2022,8 @@ $(function() {
 
 // key listener
 var tmpTool;
+var ruler;
+
 $(document).keydown(function(e) {
     if(e.keyCode == 9) {
         // tab
@@ -2030,6 +2048,13 @@ $(document).keydown(function(e) {
             selectedTool = selectedTool == "draw" ? "draw-polygon" : "draw";
             selectTool();
         }
+    } else if(e.keyCode == 81) {
+        // ctrl + q
+        if(e.ctrlKey) {
+            selectedTool = selectedTool == "distance" ? "draw" : "distance";
+            selectTool();
+            navEnabled = false;
+        }
     } else if(e.keyCode == 83) {
         // ctrl + s
         if(e.ctrlKey) {
@@ -2047,10 +2072,18 @@ function selectToolOnKeyPress(id) {
 }
 
 $(document).keyup(function(e) {
+    var element = document.getElementById("distance-tooltip");
+    if(element) {
+        element.parentNode.removeChild(element);
+    }
     if(e.keyCode == 16 || e.keyCode == 17 || e.keyCode == 18 || e.keyCode == 225) {
         // shift || ctrl || alt || alt gr
         selectedTool = tmpTool;
         navEnabled = true;
         selectTool();
+        if(ruler) {
+            ruler.remove();
+            paper.view.draw();
+        }
     }
 });

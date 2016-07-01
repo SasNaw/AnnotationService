@@ -1,5 +1,5 @@
 <html>
-
+<p style="z-index:10; position:fixed;" id="besideMouse"></p>
 <head>
 	<title>Annotation Service</title>
 	<meta charset="utf-8">
@@ -32,12 +32,13 @@
 				<img class="button" id="navigate"     title="Navigator (esc)"	src="img/navigate.svg" />
 				<img class="button" id="home"         title="Home"				src="img/home.svg" />
 				<img class="button" id="save"         title="Save annotations (ctrl + s)"	src="img/save.svg" />
+				<img class="button" id="distance"       title="Measure distance (ctrl + q)"	src="img/ruler.svg" />
 			</div>
 			<div class="buttonGroup">
 				<img class="button" id="select"       title="Select (alt + left mouse button)"   		src="img/select.svg" />
 				<img class="button" id="draw"         title="Draw (ctrl + left mouse button [switch to &quot;Draw polygon&quot; by pressing &quot;d&quot;])"	src="img/draw.svg" />
 				<img class="button" id="draw-polygon" title="Draw polygon (ctrl + left mouse button [switch to &quot;Draw&quot; by pressing &quot;d&quot;])"	src="img/draw-polygon.svg" />
-				<img class="button" id="addpoi"       title="Add Point of Interest (shift + left mouse button)"	src="img/plus.svg" />
+				<img class="button" id="addpoi"       title="Add Point of Interest (shift + left mouse button)" src="img/poi.svg"/>
 			</div>
 		</div>
 	</div>
@@ -79,10 +80,6 @@
 
 <!-- Region Picker -->
 <div id="regionPicker">
-</div>
-
-<!-- Region Picker -->
-<div id="contextPicker">
 </div>
 
 <!-- OpenSeadragon viewer -->
