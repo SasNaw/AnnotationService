@@ -32,6 +32,7 @@ var isIOS = navigator.platform.match(/(iPhone|iPod|iPad)/i)?true:false;
 	AnnotationService variables
 */
 var regionDictionary = [];
+var poiCount = 0;
 
 /***1
     Region handling functions
@@ -55,11 +56,18 @@ function newPoi(point, name, pathInfo) {
     }
     path.selected = false;
 
-    path.add(new paper.Point(x, y));
-    path.add(new paper.Point(x-1, y-3));
-    path.add(new paper.Point(x, y-2));
-    path.add(new paper.Point(x+1, y-3));
+    // path.add(new paper.Point(x, y));
+    // path.add(new paper.Point(x-1, y-3));
+    // path.add(new paper.Point(x, y-2));
+    // path.add(new paper.Point(x+1, y-3));
+    path.add(new paper.Point(x-1, y-1));
+    path.add(new paper.Point(x-1, y+1));
+    path.add(new paper.Point(x+1, y+1));
+    path.add(new paper.Point(x+1, y-1));
     path.closed = true;
+
+    poiCount++;
+    $("#poi-count").html(poiCount);
 
     return path;
 }
@@ -85,7 +93,7 @@ function newRegion(arg, imageNumber) {
         } else {
 	    	reg.point = arg;
         }
-        reg.path = newPoi(reg.point, reg.name, arg.path)
+        reg.path = newPoi(reg.point, reg.name, arg.path);
 	}
 	else {
 		// regular region
@@ -198,10 +206,11 @@ function removeRegion(reg, imageNumber) {
 	if(reg.path) {
 		// remove from paths
 		reg.path.remove();
-	} else {
-		// remove point
-		viewer.removeOverlay(reg.img);
 	}
+    if(reg.point) {
+        poiCount--;
+        $("#poi-count").html(poiCount);
+    }
 	if( imageNumber == currentImage ) {
 		// remove from regionList
 		var	tag = $("#regionList > .region-tag#" + reg.uid);
@@ -452,35 +461,34 @@ function changeRegionName(reg,name) {
     // Update region tag
     $(".region-tag#" + reg.uid + ">.region-name").text(name);
     $(".region-tag#" + reg.uid + ">.region-color").css('background-color','rgba('+color.red+','+color.green+','+color.blue+',0.67)');
+    updateRegionList();
 }
 
 /*** toggle visibility of region
 ***/
 function toggleRegion(reg) {
-    if( region !== null ) {
-        if( debug ) console.log("> toggle region"); 
-		
-        if( reg.path.fillColor !== null ) {
-            reg.path.storeColor = reg.path.fillColor;
-            reg.path.fillColor = null;
+    if( debug ) console.log("> toggle region");
 
-            reg.path.storeWidth = reg.path.strokeWidth;
-            reg.path.strokeWidth = 0;
-            reg.path.fullySelected = false;
-            reg.storeName = reg.name;
-            //reg.name=reg.name+'*';
-            $('#eye_' + reg.uid).attr('src','img/eyeClosed.svg');
-        }
-        else {
-            reg.path.fillColor = reg.path.storeColor;
-            reg.path.strokeWidth = reg.path.storeWidth;
-            reg.name = reg.storeName;
-            $('#eye_' + reg.uid).attr('src','img/eyeOpened.svg');
-        }
-        paper.view.draw();
+    if( reg.path.fillColor !== null ) {
+        reg.path.storeColor = reg.path.fillColor;
+        reg.path.fillColor = null;
 
-        $(".region-tag#" + reg.uid + ">.region-name").text(reg.name);
+        reg.path.storeWidth = reg.path.strokeWidth;
+        reg.path.strokeWidth = 0;
+        reg.path.fullySelected = false;
+        reg.storeName = reg.name;
+        //reg.name=reg.name+'*';
+        $('#eye_' + reg.uid).attr('src','img/eyeClosed.svg');
     }
+    else {
+        reg.path.fillColor = reg.path.storeColor;
+        reg.path.strokeWidth = reg.path.storeWidth;
+        reg.name = reg.storeName;
+        $('#eye_' + reg.uid).attr('src','img/eyeOpened.svg');
+    }
+    paper.view.draw();
+
+    $(".region-tag#" + reg.uid + ">.region-name").text(reg.name);
 }
 
 function updateRegionList() {
@@ -544,7 +552,8 @@ function clickHandler(event){
 function addPoi(event) {
 	var webPoint = event.position;
     var point = paper.view.viewToProject(new paper.Point(webPoint.x,webPoint.y));
-	newRegion(point);
+	var reg = newRegion(point);
+    findContextRegion(reg);
     paper.view.draw();
 }
 
@@ -724,7 +733,7 @@ function mouseDown(x,y) {
 
     handle = null;
 
-    if(selectedTool == "select") {
+    if(selectedTool == "select" || selectedTool == "area") {
         var hitResult = paper.project.hitTest(point, {
             tolerance: 10,
             stroke: true,
@@ -763,6 +772,16 @@ function mouseDown(x,y) {
             else if( hitResult.type == 'segment' ) {
                 handle = hitResult.segment.point;
                 handle.point = point;
+            }
+            if(selectedTool == "area") {
+                var mpp = (mpp_x * mpp_y) / objPower;
+                var area =  Math.round(((region.path.area * mpp) * 1000) * 100) / 100;
+                area = area < 0 ? area * (-1) : area;
+                var cpos = { top: y + 15, left: x + 15 };
+                $("body").append("<div id='area-tooltip' style='position:fixed; font-size:30px;" +
+                    " color:rgba(255,255,255,1); background-color:rgba(0,0,0,0.5)'></div>");
+                $('#area-tooltip').offset(cpos);
+                $("#area-tooltip").html(area + " μm");
             }
         }
         if( hitResult == null && region ) {
@@ -1107,7 +1126,8 @@ function getUndo() {
 				json: JSON.parse(info[i].path.exportJSON()),
 				name: info[i].name,
 				selected: info[i].path.selected,
-				fullySelected: info[i].path.fullySelected
+				fullySelected: info[i].path.fullySelected,
+                context: info[i].context
 			} 
 			
 		} else {
@@ -1160,7 +1180,7 @@ function applyUndo(undo) {
 			var path = new paper.Path();
 			project.addChild(path);
 			path.importJSON(el.json);
-			reg = newRegion({name:el.name, path:path}, undo.imageNumber);
+			reg = newRegion({name:el.name, path:path, context:el.context}, undo.imageNumber);
 		    // here order matters. if fully selected is set after selected, partially selected paths will be incorrect
 	  		reg.path.fullySelected = el.fullySelected;
 	 		reg.path.selected = el.selected;
@@ -1177,6 +1197,7 @@ function applyUndo(undo) {
 		
     }
     drawingPolygonFlag = undo.drawingPolygonFlag;
+    updateRegionList();
 }
 
 /**
@@ -1834,8 +1855,8 @@ function initMicrodraw() {
     
     // Initialize the control key handler and set shortcuts
     initShortCutHandler();
-    shortCutHandler({pc:'^ z',mac:'cmd z'},cmdUndo);
-    shortCutHandler({pc:'^ y',mac:'cmd y'},cmdRedo);
+    // shortCutHandler({pc:'^ z',mac:'cmd z'},cmdUndo);
+    // shortCutHandler({pc:'^ y',mac:'cmd y'},cmdRedo);
     if( config.drawingEnabled ) {
         shortCutHandler({pc:'^ x',mac:'cmd x'},function() { console.log("cut!")});
         shortCutHandler({pc:'^ v',mac:'cmd v'},cmdPaste);
@@ -2051,7 +2072,7 @@ $(document).keydown(function(e) {
     } else if(e.keyCode == 81) {
         // ctrl + q
         if(e.ctrlKey) {
-            selectedTool = selectedTool == "distance" ? "draw" : "distance";
+            selectedTool = selectedTool == "draw" ? "distance" : selectedTool == "distance" ? "area" : "draw" ;
             selectTool();
             navEnabled = false;
         }
@@ -2071,10 +2092,42 @@ function selectToolOnKeyPress(id) {
     selectTool();
 }
 
+var poisVisible = true;
+function togglePois() {
+    var regions = ImageInfo[currentImage].Regions;
+    if(poisVisible) {
+        $("#toggle-poi").attr('src','img/eyeClosed.svg');
+        for(var i=0; i<regions.length; i++) {
+            if(regions[i].point) {
+                if($('#eye_' + regions[i].uid).attr('src') == "img/eyeOpened.svg") {
+                    toggleRegion(regions[i]);
+                }
+            }
+        }
+        poisVisible = false;
+    } else {
+        $("#toggle-poi").attr('src','img/eyeOpened.svg');
+        poisVisible = true;
+        for(var i=0; i<regions.length; i++) {
+            if(regions[i].point) {
+                if($('#eye_' + regions[i].uid).attr('src') == "img/eyeClosed.svg") {
+                    toggleRegion(regions[i]);
+                }
+            }
+        }
+    }
+
+
+}
+
 $(document).keyup(function(e) {
-    var element = document.getElementById("distance-tooltip");
-    if(element) {
-        element.parentNode.removeChild(element);
+    var elDist = document.getElementById("distance-tooltip");
+    if(elDist) {
+        elDist.parentNode.removeChild(elDist);
+    }
+    var elArea = document.getElementById("area-tooltip");
+    if(elArea) {
+        elArea.parentNode.removeChild(elArea);
     }
     if(e.keyCode == 16 || e.keyCode == 17 || e.keyCode == 18 || e.keyCode == 225) {
         // shift || ctrl || alt || alt gr

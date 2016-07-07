@@ -10,7 +10,7 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
-   sodipodi:docname="copy2.svg"
+   sodipodi:docname="ruler.svg"
    width="37.310001"
    height="37.310001">
   <metadata
@@ -21,7 +21,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -61,7 +61,7 @@
      showgrid="false"
      inkscape:zoom="8.453125"
      inkscape:cx="17.718794"
-     inkscape:cy="20.984183"
+     inkscape:cy="30.448139"
      inkscape:window-x="203"
      inkscape:window-y="59"
      inkscape:window-maximized="0"
@@ -80,7 +80,7 @@
        id="path24366-1-4" />
   </g>
   <g
-     transform="matrix(0.09229773,0,0,0.09104088,1.3743062,1.5382545)"
+     transform="matrix(0.07668976,0,0,-0.07564545,4.2935958,32.97819)"
      id="g3507">
     <g
        id="g3509">
