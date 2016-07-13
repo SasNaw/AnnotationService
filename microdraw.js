@@ -34,6 +34,15 @@ var isIOS = navigator.platform.match(/(iPhone|iPod|iPad)/i)?true:false;
 var regionDictionary = [];
 var poiCount = 0;
 
+/***
+ Metadata variables
+ */
+var origWidth;
+var origHeight;
+var mpp_x;
+var mpp_y;
+var objPower;
+
 /***1
     Region handling functions
 */
@@ -533,18 +542,17 @@ function clickHandler(event){
     	console.log("> clickHandler");
     	var webPoint = event.position;
 		var viewportPoint = viewer.viewport.pointFromPixel(webPoint);
-		console.log(">    "+webPoint+")");
-		console.log(">    "+viewportPoint+")");
-	}
+    }
     event.stopHandlers = !navEnabled;
     if( selectedTool == "draw") {
         checkRegionSize(region);
     }
     else if( selectedTool == "addpoi") {
-		var undoInfo = getUndo();
-		saveUndo(undoInfo);
+		// var undoInfo = getUndo();
+		// saveUndo(undoInfo);
 		//mouseUndo = getUndo();
 		//commitMouseUndo();
+        // todo: check for right img size
 		addPoi(event);
 	}
 }
@@ -552,6 +560,26 @@ function clickHandler(event){
 function addPoi(event) {
 	var webPoint = event.position;
     var point = paper.view.viewToProject(new paper.Point(webPoint.x,webPoint.y));
+    var viewportPoint = viewer.viewport.pointFromPixel(webPoint);
+    var imgCoord = viewer.viewport.viewportToImageCoordinates(viewportPoint);
+
+    var source = params.source.replace(".dzi", "_files/") + viewer.source.maxLevel + "/" +
+        Math.floor(imgCoord.x / 256) + "_" + Math.floor(imgCoord.y / 256) + ".jpeg";
+    source = source.substr(1, source.length-1);
+
+    console.log("source:" + source + " || imgCoord: " + imgCoord + " || calc: " + imgCoord.x / 256 + ", "+ imgCoord.y / 256);
+
+    //call python script
+    $.ajax({
+        type : "POST",
+        url : "runPython.php",
+        data : {script:config.segmentationScript, source:source}
+    }).done(function( o ) {
+        // do something
+        console.log("opencv: success!");
+        clearToolSelection();
+    });
+
 	var reg = newRegion(point);
     findContextRegion(reg);
     paper.view.draw();
@@ -1923,11 +1951,8 @@ function initMicrodraw() {
 
     return def.promise();
 }
-var mpp_x;
-var mpp_y;
-var objPower;
+
 function addScalebar(metadata) {
-    var orgWidth;
     for(var i=0; i<metadata.length; i++) {
         if(metadata[i].name == "openslide.mpp-x") {
             mpp_x = metadata[i].value;
@@ -1936,7 +1961,9 @@ function addScalebar(metadata) {
         } else if(metadata[i].name == "openslide.objective-power") {
             objPower = metadata[i].value;
         } else if(metadata[i].name == "width") {
-            orgWidth = metadata[i].value;
+            origWidth = metadata[i].value;
+        }else if(metadata[i].name == "height") {
+            origHeight = metadata[i].value;
         }
     }
 

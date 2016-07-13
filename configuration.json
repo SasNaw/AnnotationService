@@ -6,5 +6,6 @@
     "multiImageSave":false,
     "dictionary":"dictionaries/example.json",
     "regionProperties":"file.json",
-    "autoAssign":false
+    "autoAssign":"false",
+    "segmentationScript":"opencv.py"
 }
