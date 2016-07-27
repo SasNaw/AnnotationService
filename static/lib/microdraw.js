@@ -384,7 +384,7 @@ function regionTag(name,uid,context,fillColor) {
             color = regionHashColor(name);
         }
         str = [ "<div class='region-tag' id='" + uid + "' style='padding:2px'>",
-            "<img class='eye' title='Region visible' id='eye_" + uid + "' src='img/eyeOpened.svg' />",
+            "<img class='eye' title='Region visible' id='eye_" + uid + "' src='" + staticPath + "/img/eyeOpened.svg' />",
             "<div class='region-color' id='color_" + uid + "'",
             "style='background-color:rgba(",
             parseInt(color.red*mult),",",parseInt(color.green*mult),",",parseInt(color.blue*mult),",0.67",
@@ -404,12 +404,12 @@ function regionTag(name,uid,context,fillColor) {
                     }
                 }
 
-                str += "<img class='eye' style='margin-right:10px' title='Remove context' id='removeContext_" + uid + "/" + i + "' src='img/remove.svg' />";
+                str += "<img class='eye' style='margin-right:10px' title='Remove context' id='removeContext_" + uid + "/" + i + "' src='" + staticPath + "/img/remove.svg' />";
                 str += "<span class='context-name' id='context_" + uid + "/" + i + "'>" + contextName + "</span></br>";
             }
         }
 
-        str += "<img class='eye' title='Add context' id='addContext_" + uid + "' src='img/add.svg' />";
+        str += "<img class='eye' title='Add context' id='addContext_" + uid + "' src='" + staticPath + "/img/add.svg' />";
         str += "</div>";
     }
     else {
@@ -489,13 +489,13 @@ function toggleRegion(reg) {
         reg.path.fullySelected = false;
         reg.storeName = reg.name;
         //reg.name=reg.name+'*';
-        $('#eye_' + reg.uid).attr('src','img/eyeClosed.svg');
+        $('#eye_' + reg.uid).attr('src', staticPath + '/img/eyeClosed.svg');
     }
     else {
         reg.path.fillColor = reg.path.storeColor;
         reg.path.strokeWidth = reg.path.storeWidth;
         reg.name = reg.storeName;
-        $('#eye_' + reg.uid).attr('src','img/eyeOpened.svg');
+        $('#eye_' + reg.uid).attr('src', staticPath +'/img/eyeOpened.svg');
     }
     paper.view.draw();
 
@@ -2149,21 +2149,21 @@ var poisVisible = true;
 function togglePois() {
     var regions = ImageInfo[currentImage].Regions;
     if(poisVisible) {
-        $("#toggle-poi").attr('src','img/eyeClosed.svg');
+        $("#toggle-poi").attr('src', staticPath +'/img/eyeClosed.svg');
         for(var i=0; i<regions.length; i++) {
             if(regions[i].point) {
-                if($('#eye_' + regions[i].uid).attr('src') == "img/eyeOpened.svg") {
+                if($('#eye_' + regions[i].uid).attr('src') == staticPath + '/img/eyeOpened.svg') {
                     toggleRegion(regions[i]);
                 }
             }
         }
         poisVisible = false;
     } else {
-        $("#toggle-poi").attr('src','img/eyeOpened.svg');
+        $("#toggle-poi").attr('src', staticPath + '/img/eyeOpened.svg');
         poisVisible = true;
         for(var i=0; i<regions.length; i++) {
             if(regions[i].point) {
-                if($('#eye_' + regions[i].uid).attr('src') == "img/eyeClosed.svg") {
+                if($('#eye_' + regions[i].uid).attr('src') == staticPath + '/img/eyeClosed.svg') {
                     toggleRegion(regions[i]);
                 }
             }
