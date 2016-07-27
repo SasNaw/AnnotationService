@@ -1578,7 +1578,8 @@ function save() {
 }
 
 function getJsonSource() {
-    return params.source.substr(1, params.source.length-5)+"_files/imageinfo.json";
+    // return params.source.substr(1, params.source.length-5)+"_files/imageinfo.json";
+    return slide.name + ".json";
 }
 
 function saveJson() {
@@ -1590,7 +1591,7 @@ function saveJson() {
 
     $.ajax({
         type : "POST",
-        url : "json.php",
+        url : "/saveJson",
         data : {
             json : JSON.stringify(ImageInfo[currentImage]["Regions"]),
             source: source
@@ -1603,8 +1604,7 @@ function saveJson() {
 
 function loadJson() {
     console.log("> loading json from " + getJsonSource());
-    console.log(getJsonSource());
-    $.getJSON(getJsonSource(), function(json) {
+    $.getJSON(staticPath + "/wsi/" + getJsonSource(), function(json) {
         var region;
         for(var i=0; i<json.length; i++) {
             region = json[i];
@@ -2006,7 +2006,7 @@ function initMicrodraw() {
         viewer.source.minLevel = 8;
 
         // load saved annotations and pois
-        // loadJson();
+        loadJson();
     });
     viewer.addHandler('animation', function(event){
         transform();

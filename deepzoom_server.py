@@ -18,7 +18,7 @@
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from flask import Flask, abort, make_response, render_template, url_for
+from flask import Flask, abort, make_response, render_template, url_for, request
 from io import BytesIO
 import openslide
 from openslide import ImageSlide, open_slide
@@ -46,61 +46,21 @@ class PILBytesIO(BytesIO):
         raise AttributeError('Not supported')
 
 
-# @app.before_first_request
-# def load_slide():
-#     slidefile = app.config['DEEPZOOM_SLIDE']
-#     if slidefile is None:
-#         raise ValueError('No slide file specified')
-#     config_map = {
-#         'DEEPZOOM_TILE_SIZE': 'tile_size',
-#         'DEEPZOOM_OVERLAP': 'overlap',
-#         'DEEPZOOM_LIMIT_BOUNDS': 'limit_bounds',
-#     }
-#     opts = dict((v, app.config[k]) for k, v in config_map.items())
-#     slide = open_slide(slidefile)
-#     app.slides = {
-#         SLIDE_NAME: DeepZoomGenerator(slide, **opts)
-#     }
-#     app.associated_images = []
-#     app.slide_properties = slide.properties
-#     for name, image in slide.associated_images.items():
-#         app.associated_images.append(name)
-#         slug = slugify(name)
-#         app.slides[slug] = DeepZoomGenerator(ImageSlide(image), **opts)
-#     try:
-#         mpp_x = slide.properties[openslide.PROPERTY_NAME_MPP_X]
-#         mpp_y = slide.properties[openslide.PROPERTY_NAME_MPP_Y]
-#         app.slide_mpp = (float(mpp_x) + float(mpp_y)) / 2
-#     except (KeyError, ValueError):
-#         app.slide_mpp = 0
-
-
-@app.route('/')
-def index():
-    slide_url = url_for('dzi', slug=SLIDE_NAME)
-    # associated_urls = dict((name, url_for('dzi', slug=slugify(name)))
-    #         for name in app.associated_images)
-    return render_template('index.html', slide_url=slide_url,
-            # associated=associated_urls, properties=app.slide_properties,
-            slide_mpp=app.slide_mpp, file_name=app.config['DEEPZOOM_SLIDE'])
-
-
 @app.route('/wsi/<path:file_path>.dzi')
 def index_dzi(file_path):
-    # file_name = file + ".dzi"
-    file_name = file_path + ".dzi"
-    slide_url = "/wsi/" + file_name
+    file_name = file_path + '.dzi'
+    slide_url = '/wsi/' + file_name
     # read dzi file
     try:
-        with open("static/wsi/" + file_path + "_files/metadata.txt") as file:
+        with open('static/wsi/' + file_path + '_files/metadata.txt') as file:
             mpp_x = 0
             mpp_y = 0
-            metadata = file.read().split("\n")
+            metadata = file.read().split('\n')
             for property in metadata:
                 if openslide.PROPERTY_NAME_MPP_X in property:
-                    mpp_x = property.split(": ")[1]
+                    mpp_x = property.split(': ')[1]
                 elif openslide.PROPERTY_NAME_MPP_Y in property:
-                    mpp_y = property.split(": ")[1]
+                    mpp_y = property.split(': ')[1]
             slide_mpp = (float(mpp_x) + float(mpp_y)) / 2
     except IOError:
         slide_mpp = 0
@@ -109,14 +69,13 @@ def index_dzi(file_path):
 
 @app.route('/wsi/<path:file_path>')
 def index_wsi(file_path):
-    slide_url = "wsi/" + file_path
     config_map = {
         'DEEPZOOM_TILE_SIZE': 'tile_size',
         'DEEPZOOM_OVERLAP': 'overlap',
         'DEEPZOOM_LIMIT_BOUNDS': 'limit_bounds',
     }
     opts = dict((v, app.config[k]) for k, v in config_map.items())
-    slide = open_slide("static/wsi/" + file_path)
+    slide = open_slide('static/wsi/' + file_path)
     app.slides = {
         SLIDE_NAME: DeepZoomGenerator(slide, **opts)
     }
@@ -172,6 +131,18 @@ def tile(slug, level, col, row, format):
 def slugify(text):
     text = normalize('NFKD', text.lower()).encode('ascii', 'ignore').decode()
     return re.sub('[^a-z0-9]+', '-', text)
+
+
+@app.route('/saveJson', methods=['POST'])
+def saveJson():
+    dict = request.form
+    source = dict.get('source', default='')
+    json = dict.get('json', default='{}')
+    if len(source) > 0 and len(json) > 2:
+        # only create and fill a file if there is something to fill it with
+        with open('static/wsi/' + source, 'w+') as file:
+            file.write(json)
+    return 'Ok'
 
 
 if __name__ == '__main__':
