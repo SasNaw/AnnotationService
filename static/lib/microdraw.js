@@ -932,13 +932,14 @@ function getDistance() {
     // get project coordinates of ruler segments
     var point1 = ruler.segments[0].point;
     var point2 = ruler.segments[1].point;
-    // convert to view coordinates
+    // convert to screen coordinates
     point1 = paper.view.projectToView(point1);
     point2 = paper.view.projectToView(point2);
-    // convert to wsi coordinates
-    // point1 = viewer.viewport.pointFromPixel(point1);
+    // convert to viewport coordinates
+    point1 = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(point1.x, point1.y));
+    point2 = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(point2.x, point2.y));
+    // convert to image coordinates
     point1 = viewer.viewport.viewportToImageCoordinates(point1);
-    // point2 = viewer.viewport.pointFromPixel(point2);
     point2 = viewer.viewport.viewportToImageCoordinates(point2);
 
     var pxDistance = Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
