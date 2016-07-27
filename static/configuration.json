@@ -1,0 +1,11 @@
+{
+    "hideToolbar":false,
+    "regionOntology":true,
+    "drawingEnabled":true,
+    "removeTools":[],
+    "multiImageSave":false,
+    "dictionary":"example.json",
+    "regionProperties":"file.json",
+    "autoAssign":"false",
+    "segmentationScript":"opencv.py"
+}
