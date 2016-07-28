@@ -18,7 +18,7 @@
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from flask import Flask, abort, make_response, render_template, url_for, request
+from flask import Flask, abort, make_response, render_template, url_for, request, jsonify
 from io import BytesIO
 import openslide
 from openslide import ImageSlide, open_slide
@@ -26,6 +26,7 @@ from openslide.deepzoom import DeepZoomGenerator
 from optparse import OptionParser
 import re
 from unicodedata import normalize
+import os.path
 
 DEEPZOOM_SLIDE = None
 DEEPZOOM_FORMAT = 'jpeg'
@@ -143,6 +144,18 @@ def saveJson():
         with open('static/wsi/' + source, 'w+') as file:
             file.write(json)
     return 'Ok'
+
+
+@app.route('/loadJson')
+def loadJson():
+    source = 'static/wsi/' + request.args.get('src', '')
+    if os.path.isfile(source):
+        with open(source, 'r') as file:
+            content = file.read()
+            return jsonify(content)
+    else:
+        return jsonify('[]')
+
 
 
 if __name__ == '__main__':
