@@ -27,6 +27,7 @@ from optparse import OptionParser
 import re
 from unicodedata import normalize
 import os.path
+import json
 
 DEEPZOOM_SLIDE = None
 DEEPZOOM_FORMAT = 'jpeg'
@@ -140,7 +141,7 @@ def saveJson():
     source = dict.get('source', default='')
     json = dict.get('json', default='{}').encode('utf-8')
     if len(source) > 0:
-        with open('static/wsi/' + source, 'w+') as file:
+        with open('static/' + source, 'w+') as file:
             file.write(json)
     return 'Ok'
 
@@ -153,8 +154,26 @@ def loadJson():
             content = file.read()
             return jsonify(content)
     else:
-        return jsonify('[]')
+        return jsonify('[]')\
 
+
+@app.route('/createDictionary')
+def createDictionary():
+    name = request.args.get('name', '')
+    path = 'static/dictionaries/' + name
+    if os.path.isfile(path):
+        # dictionary already exists
+        return 'error'
+    else:
+        with open(path, 'w+') as dictionary:
+            dictionary.write("[]")
+        with open('static/configuration.json', 'r') as config:
+            content = json.loads(config.read())
+            content['dictionary'] = name
+        with open('static/configuration.json', 'w+') as config:
+            config.write(json.dumps(content))
+        respone = '{"name":"' + name + '", "path":"/' + path + '"}';
+        return respone
 
 
 if __name__ == '__main__':

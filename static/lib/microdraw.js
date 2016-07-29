@@ -29,8 +29,8 @@ var isIOS = navigator.platform.match(/(iPhone|iPod|iPad)/i)?true:false;
 /***
 	AnnotationService variables
 */
-var last_label_uid = 0;
-var last_region_uid = 0;
+var tmpTool;
+var ruler;
 var staticPath;                 // path to flasks static folder
 var slide;                      // slide object with (file-)name, url and mpp
 var labelDictionary = [];       // dictionary with labels
@@ -39,23 +39,28 @@ var currentLabel = {label:"no label"};  // currently selected label
 /***0
     Label handling functions
 */
-function appendLabelToList(label, uid, color, alpha) {
-    if(!uid) {
-        uid = uniqueID(true);
+function newLabel() {
+    var uid = uniqueID();
+    var label = prompt("Enter new region name", "new label " + uid);
+    if(label !== null) {
+        label = label.length == 0 ? "untitled" + uid : label;
+        var color = regionHashColor(label);
+        var entry = { "label":label, "uid":uid, "color":color, "alpha":config.defaultFillAlpha };
+        labelDictionary.push(entry)
+        saveDictionary()
+
+        return entry;
     }
-    if(!color) {
-        color = regionHashColor(label);
-    }
-    if(!alpha) {
-        color = config.defaultFillAlpha;
-    }
-    var str = [ "<div class='region-tag' id='" + uid + "'>",
-        "<img class='eye' title='Region visible' id='eye_" + uid + "' src='" + staticPath + "/img/eyeOpened.svg' />",
-        "<div class='region-color' id='color_" + uid + "'",
+}
+
+function appendLabelToList(label) {
+    var str = [ "<div class='region-tag' id='" + label.uid + "'>",
+        "<img class='eye' title='Region visible' id='eye_" + label.uid + "' src='" + staticPath + "/img/eyeOpened.svg' />",
+        "<div class='region-color' id='color_" + label.uid + "'",
         "style='background-color:rgba(",
-        parseInt(color.red),",",parseInt(color.green),",",parseInt(color.blue),",",alpha,
+        parseInt(label.color.red),",",parseInt(label.color.green),",",parseInt(label.color.blue),",",label.alpha,
         ")'></div>",
-        "<span class='region-name' id='name_" + uid + "' style='overflow:hidden'>" + label + "</span><br/>",
+        "<span class='region-name' id='name_" + label.uid + "' style='overflow:hidden'>" + label.label + "</span><br/>",
     ].join(" ");
 
     var el = $(str);
@@ -66,15 +71,23 @@ function appendLabelToList(label, uid, color, alpha) {
     // handle double click on computers
     // el.dblclick(doublePressOnRegion);
 
+    // select latest label
+    var tags = $("#regionList > .region-tag");
+    selectLabel(tags[tags.length - 1]);
 }
 
 function appendLabelsToList() {
-    for(var i=0; i<labelDictionary.length; i++) {
-        appendLabelToList(labelDictionary[i].label, labelDictionary[i].uid, labelDictionary[i].color,
-            labelDictionary[i].alpha);
+    var tags = $("#regionList > .region-tag");
+    tags.each(function(i){
+        tags[i].remove();
+    });
+    if(labelDictionary) {
+        for(var i=0; i<labelDictionary.length; i++) {
+            appendLabelToList(labelDictionary[i]);
+        }
+        // select first label automatically
+        selectNextLabel();
     }
-    // select first label automatically
-    selectNextLabel();
 }
 
 function selectNextLabel() {
@@ -151,7 +164,7 @@ function newRegion(arg, imageNumber) {
     if(arg.uid) {
         reg.uid = arg.uid;
     } else {
-        reg.uid = uniqueID();
+        reg.uid = currentLabel.uid;
     }
 
 	if(arg.x && arg.y || arg.point) {
@@ -343,15 +356,11 @@ function findRegionByName(name) {
 }
 
 function uniqueID(label=false) {
-    if( debug ) console.log("> uniqueID");
-    if(label) {
-        last_label_uid = labelDictionary.length > 0 ? labelDictionary[labelDictionary.length-1].uid + 1 : 0;
-        return last_label_uid;
-    } else {
-        var regions = ImageInfo[currentImage].Regions;
-        last_region_uid = regions.length > 0 ? regions[regions.length-1].uid + 1: 0;
-        return last_region_uid;
+    if(labelDictionary) {
+        if( debug ) console.log("> uniqueID");
+        return labelDictionary.length > 0 ? parseInt(labelDictionary[labelDictionary.length-1].uid) + 1 : 1;
     }
+    return 0;
 }
 
 function hash(str) {
@@ -1257,7 +1266,7 @@ function toolSelection(event) {
             handle = null;
             break;
         case "save":
-            saveJson();
+            saveRegions();
             backToPreviousTool(prevTool);
             break;
         case "home":
@@ -1286,23 +1295,31 @@ function selectTool() {
     Annotation storage
 */
 
-function getJsonSource() {
-    return slide.name + ".json";
-}
-
-function saveJson() {
+function saveJson(json, filePath) {
     console.log("> writing json to file");
     var source = getJsonSource();
     $.ajax({
         type : "POST",
         url : "/saveJson",
         data : {
-            json : JSON.stringify(ImageInfo[currentImage]["Regions"]),
-            source: source
+            json : JSON.stringify(json),
+            source: filePath
         }
 
     });
     console.log("< writing json to file");
+}
+
+function saveDictionary() {
+    saveJson(labelDictionary, "dictionaries/" + config.dictionary);
+}
+
+function getJsonSource() {
+    return slide.name + ".json";
+}
+
+function saveRegions() {
+    saveJson(ImageInfo[currentImage]["Regions"], "wsi/" + getJsonSource());
 }
 
 function loadJson() {
@@ -1447,11 +1464,7 @@ function loadConfiguration() {
         config.defaultFillAlpha = 0.5;
 
         // load label dictionary
-        $.getJSON(staticPath + "/dictionaries/" + config.dictionary, function(dictionary) {
-            labelDictionary = dictionary;
-            appendLabelsToList();
-            // appendRegionTagsFromDictionary();
-        });
+        loadDictionary(staticPath + "/dictionaries/" + config.dictionary);
         
         drawingTools = ["select", "draw", "draw-polygon", "save", "addpoi"];
         if( config.drawingEnabled == false ) {
@@ -1471,6 +1484,13 @@ function loadConfiguration() {
     });
 
     return def.promise();
+}
+
+function loadDictionary(path) {
+    $.getJSON(path, function(dictionary) {
+        labelDictionary = dictionary;
+        appendLabelsToList();
+    });
 }
 
 function initAnnotationService() {
@@ -1610,8 +1630,6 @@ function toggleMenu () {
 }
 
 // key listener
-var tmpTool;
-var ruler;
 
 $(document).keydown(function(e) {
     if(e.keyCode == 9) {
@@ -1651,7 +1669,21 @@ $(document).keydown(function(e) {
         // ctrl + s
         if(e.ctrlKey) {
             e.preventDefault();
-            saveJson();
+            saveRegions();
+        }
+    } else if(e.keyCode == 107) {
+        e.preventDefault();
+        e.stopPropagation();
+        if(e.ctrlKey && e.shiftKey) {
+            // ctrl + shift + "+"
+            createNewDictionary();
+        } else if(e.ctrlKey) {
+            // ctrl + "+"
+            var label = newLabel();
+            if(label) {
+                appendLabelToList(label);
+            }
+            clearToolSelection();
         }
     }
 });
@@ -1661,6 +1693,39 @@ function selectToolOnKeyPress(id) {
     selectedTool = id;
     navEnabled = false;
     selectTool();
+}
+
+function createNewDictionary() {
+    // get name for new dictionary
+    var name = "";
+    while(name.length == 0) {
+        name = prompt("Enter new name for new dictionary", "dictionary");
+        if(name === null) {
+            // user hits "cancel" in prompt
+            name = null;
+            break;
+        }
+    }
+    if(name) {
+        if(name.indexOf(".json") === -1) {
+            name = name + ".json"
+        }
+        // request creation of new dictionary and path to it
+        $.ajax({
+            type : "GET",
+            url : "/createDictionary?name="+name,
+        }).done(function (response) {
+            if(response === "error") {
+                alert("Couldn't create dictionary. Name is already taken!")
+            } else {
+                var json = JSON.parse(response);
+                var path = json["path"];
+                var name = json["name"];
+                config.dictionary = name;
+                loadDictionary(path);
+            }
+        });
+    }
 }
 
 $(document).keyup(function(e) {
@@ -1683,32 +1748,6 @@ $(document).keyup(function(e) {
         }
     }
 });
-
-// var poisVisible = true;
-// function togglePois() {
-//     var regions = ImageInfo[currentImage].Regions;
-//     if(poisVisible) {
-//         $("#toggle-poi").attr('src', staticPath +'/img/eyeClosed.svg');
-//         for(var i=0; i<regions.length; i++) {
-//             if(regions[i].point) {
-//                 if($('#eye_' + regions[i].uid).attr('src') == staticPath + '/img/eyeOpened.svg') {
-//                     toggleRegions(regions[i]);
-//                 }
-//             }
-//         }
-//         poisVisible = false;
-//     } else {
-//         $("#toggle-poi").attr('src', staticPath + '/img/eyeOpened.svg');
-//         poisVisible = true;
-//         for(var i=0; i<regions.length; i++) {
-//             if(regions[i].point) {
-//                 if($('#eye_' + regions[i].uid).attr('src') == staticPath + '/img/eyeClosed.svg') {
-//                     toggleRegions(regions[i]);
-//                 }
-//             }
-//         }
-//     }
-// }
 
 function init(file_name, url, mpp) {
     slide = {"name":file_name, "url":url, "mpp":mpp};

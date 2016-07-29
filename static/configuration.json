@@ -1,10 +1,1 @@
-{
-    "hideToolbar":false,
-    "drawingEnabled":true,
-    "removeTools":[],
-    "multiImageSave":false,
-    "dictionary":"labels.json",
-    "regionProperties":"file.json",
-    "autoAssign":"false",
-    "segmentationScript":"opencv.py"
-}
+{"autoAssign": "false", "dictionary": "example.json", "removeTools": [], "hideToolbar": false, "multiImageSave": false, "drawingEnabled": true, "segmentationScript": "opencv.py"}
