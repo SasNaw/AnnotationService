@@ -26,9 +26,11 @@ var config = {}                 // App configuration object
 var isMac = navigator.platform.match(/Mac/i)?true:false;
 var isIOS = navigator.platform.match(/(iPhone|iPod|iPad)/i)?true:false;
 
-/*** 
+/***
 	AnnotationService variables
 */
+var last_label_uid = 0;
+var last_region_uid = 0;
 var staticPath;                 // path to flasks static folder
 var slide;                      // slide object with (file-)name, url and mpp
 var labelDictionary = [];       // dictionary with labels
@@ -39,7 +41,7 @@ var currentLabel = {label:"no label"};  // currently selected label
 */
 function appendLabelToList(label, uid, color, alpha) {
     if(!uid) {
-        uid = uniqueID();
+        uid = uniqueID(true);
     }
     if(!color) {
         color = regionHashColor(label);
@@ -61,9 +63,8 @@ function appendLabelToList(label, uid, color, alpha) {
 
     // handle single click on computers
     el.click(singleClickOnLabel);
-
     // handle double click on computers
-    el.dblclick(doublePressOnRegion);
+    // el.dblclick(doublePressOnRegion);
 
 }
 
@@ -72,6 +73,8 @@ function appendLabelsToList() {
         appendLabelToList(labelDictionary[i].label, labelDictionary[i].uid, labelDictionary[i].color,
             labelDictionary[i].alpha);
     }
+    // select first label automatically
+    selectNextLabel();
 }
 
 function selectNextLabel() {
@@ -148,7 +151,7 @@ function newRegion(arg, imageNumber) {
     if(arg.uid) {
         reg.uid = arg.uid;
     } else {
-        reg.uid = currentLabel.uid;
+        reg.uid = uniqueID();
     }
 
 	if(arg.x && arg.y || arg.point) {
@@ -339,23 +342,16 @@ function findRegionByName(name) {
     return null;
 }
 
-var counter = 1;
-function uniqueID() {
+function uniqueID(label=false) {
     if( debug ) console.log("> uniqueID");
-
-    var i;
-    var found = false;
-    while( found == false ) {
-        found = true;
-        for( i = 0; i < ImageInfo[currentImage]["Regions"].length; i++ ) {
-            if( ImageInfo[currentImage]["Regions"][i].uid == counter ) {
-                counter++;
-                found = false;
-                break;
-            }
-        }
+    if(label) {
+        last_label_uid = labelDictionary.length > 0 ? labelDictionary[labelDictionary.length-1].uid + 1 : 0;
+        return last_label_uid;
+    } else {
+        var regions = ImageInfo[currentImage].Regions;
+        last_region_uid = regions.length > 0 ? regions[regions.length-1].uid + 1: 0;
+        return last_region_uid;
     }
-    return counter;
 }
 
 function hash(str) {
@@ -566,30 +562,8 @@ function singleClickOnLabel(event) {
     if( debug ) console.log("> labelClick");
     event.stopPropagation();
     event.preventDefault();
-
     var clickedId = event.toElement.id;
-
     var el = $(this);
-
-    // if(clickedId === "eye_" + uid) {
-    //
-    // } else if(clickedId === "name_" + uid) {
-    //     // Click on regionList (list or annotated regions)
-    //     reg = findRegionByUID(uid);
-    //     if( reg ) {
-    //         selectRegion(reg);
-    //     } else {
-    //         console.log("region undefined");
-    //     }
-    // } else if(clickedId === "color_" + uid) {
-    //     // open color picker
-    //     var reg = findRegionByUID(this.id);
-    //     if( reg.path.fillColor != null ) {
-    //         if( reg ) {
-    //             selectRegion(reg);
-    //         }
-    //         annotationStyle(reg);
-    //     }
 
     if(clickedId === "eye_" + el[0].id) {
         // toogle visibility
@@ -1319,7 +1293,6 @@ function getJsonSource() {
 function saveJson() {
     console.log("> writing json to file");
     var source = getJsonSource();
-    console.log(source);
     $.ajax({
         type : "POST",
         url : "/saveJson",

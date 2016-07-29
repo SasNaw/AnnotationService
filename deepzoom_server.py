@@ -138,9 +138,8 @@ def slugify(text):
 def saveJson():
     dict = request.form
     source = dict.get('source', default='')
-    json = dict.get('json', default='{}')
-    if len(source) > 0 and len(json) > 2:
-        # only create and fill a file if there is something to fill it with
+    json = dict.get('json', default='{}').encode('utf-8')
+    if len(source) > 0:
         with open('static/wsi/' + source, 'w+') as file:
             file.write(json)
     return 'Ok'
