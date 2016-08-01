@@ -254,11 +254,11 @@ function isRegionAlreadyReferenced(region1, region2) {
 
 function removeRegion(reg, imageNumber) {
 	if( debug ) console.log("> removeRegion");
-	
+
 	if( imageNumber === undefined ) {
 		imageNumber = currentImage;
 	}
-	
+
 	// remove from Regions array
 	ImageInfo[imageNumber]["Regions"].splice(ImageInfo[imageNumber]["Regions"].indexOf(reg),1);
 	if(reg.path) {
@@ -332,7 +332,7 @@ function findRegionByUID(uid) {
     if( debug > 2 ) console.log( "region array lenght: " + ImageInfo[currentImage]["Regions"].length );
 
     for( i = 0; i < ImageInfo[currentImage]["Regions"].length; i++ ) {
-        
+
         if( ImageInfo[currentImage]["Regions"][i].uid == uid ) {
             if( debug > 2 ) console.log( "region " + ImageInfo[currentImage]["Regions"][i].uid + ": " );
             if( debug > 2 ) console.log( ImageInfo[currentImage]["Regions"][i] );
@@ -355,7 +355,7 @@ function findRegionByName(name) {
     return null;
 }
 
-function uniqueID(label=false) {
+function uniqueID() {
     if(labelDictionary) {
         if( debug ) console.log("> uniqueID");
         return labelDictionary.length > 0 ? parseInt(labelDictionary[labelDictionary.length-1].uid) + 1 : 1;
@@ -365,7 +365,7 @@ function uniqueID(label=false) {
 
 function hash(str) {
     var result = str.split("").reduce(function(a,b) {
-        a = ((a<<5)-a) + b.charCodeAt(0); 
+        a = ((a<<5)-a) + b.charCodeAt(0);
         return a&a;
     },0);
     return result;
@@ -709,7 +709,7 @@ function handleRegionTap(event) {
     if( !tap ){ //if tap is not set, set up single tap
         tap = setTimeout(function() {
             tap = null
-        },300); 
+        },300);
 
         // call singlePressOnRegion(event) using 'this' as context
         singlePressOnRegion.call(this,event);
@@ -953,14 +953,14 @@ function mouseUp() {
 ***/
 var annotationColorLabel;
 // add leading zeros
-function pad(number, length) { 
-    var str = '' + number; 
-    while( str.length < length ) 
-        str = '0' + str; 
-    return str; 
+function pad(number, length) {
+    var str = '' + number;
+    while( str.length < length )
+        str = '0' + str;
+    return str;
 }
 
-/*** get current alpha & color values for colorPicker display 
+/*** get current alpha & color values for colorPicker display
 ***/
 function annotationStyle(label) {
     if( debug ) console.log("> changing annotation style");
@@ -983,7 +983,7 @@ function annotationStyle(label) {
     }
 }
 
-/*** set picked color & alpha 
+/*** set picked color & alpha
 ***/
 function setRegionColor() {
     var hexColor = $('#fillColorPicker').val();
@@ -996,7 +996,7 @@ function setRegionColor() {
     $('#colorSelector').css('display', 'none');
 }
 
-/*** update all values on the fly 
+/*** update all values on the fly
 ***/
 function onFillColorPicker(value) {
     $('#fillColorPicker').val(value);
@@ -1074,8 +1074,8 @@ function getUndo() {
 				selected: info[i].path.selected,
 				fullySelected: info[i].path.fullySelected,
                 context: info[i].context
-			} 
-			
+			}
+
 		} else {
 			el = {
 				x: info[i].point.x,
@@ -1140,7 +1140,7 @@ function applyUndo(undo) {
         	reg = newRegion({name:el.name, x:el.x, y:el.y}, undo.imageNumber);
         	viewer.addOverlay(reg.img, reg.point);
         }
-		
+
     }
     drawingPolygonFlag = undo.drawingPolygonFlag;
     updateRegionList();
@@ -1369,12 +1369,12 @@ function resizeAnnotationOverlay() {
 
 function initAnnotationOverlay(data) {
     if( debug ) console.log("> initAnnotationOverlay");
-    
+
     // do not start loading a new annotation if a previous one is still being loaded
     if(annotationLoadingFlag==true) {
         return;
     }
-    
+
     //console.log("new overlay size" + viewer.world.getItemAt(0).getContentSize());
 
     /*
@@ -1465,7 +1465,7 @@ function loadConfiguration() {
 
         // load label dictionary
         loadDictionary(staticPath + "/dictionaries/" + config.dictionary);
-        
+
         drawingTools = ["select", "draw", "draw-polygon", "save", "addpoi"];
         if( config.drawingEnabled == false ) {
             // remove drawing tools from ui
@@ -1487,10 +1487,22 @@ function loadConfiguration() {
 }
 
 function loadDictionary(path) {
-    $.getJSON(path, function(dictionary) {
-        labelDictionary = dictionary;
-        appendLabelsToList();
+    $.ajax({
+        url: path,
+        dataType: "json",
+        success: function (dictionary) {
+            labelDictionary = dictionary;
+            appendLabelsToList();
+        },
+        error: function (data) {
+            createNewDictionary(false);
+        }
     });
+    // $.getJSON(path, function(dictionary) {
+    //
+    //     labelDictionary = dictionary;
+    //     appendLabelsToList();
+    // });
 }
 
 function initAnnotationService() {
@@ -1501,7 +1513,7 @@ function initAnnotationService() {
 
     // Enable click on toolbar buttons
     $("img.button").click(toolSelection);
-    
+
     // set annotation loading flag to false
     annotationLoadingFlag = false;
 
@@ -1588,7 +1600,7 @@ function initAnnotationService() {
                 return;
             }
             mouse_position = e.clientX;
-    
+
             if( mouse_position <= 100 ) {
                 //SLIDE IN MENU
                 animating = true;
@@ -1622,7 +1634,7 @@ function toggleMenu () {
     if( $('#menuBar').css('display') == 'none' ) {
         $('#menuBar').css('display', 'block');
         $('#menuButton').css('display', 'none');
-    } 
+    }
     else {
         $('#menuBar').css('display', 'none');
         $('#menuButton').css('display', 'block');
@@ -1676,7 +1688,7 @@ $(document).keydown(function(e) {
         e.stopPropagation();
         if(e.ctrlKey && e.shiftKey) {
             // ctrl + shift + "+"
-            createNewDictionary();
+            createNewDictionary(true);
         } else if(e.ctrlKey) {
             // ctrl + "+"
             var label = newLabel();
@@ -1695,15 +1707,21 @@ function selectToolOnKeyPress(id) {
     selectTool();
 }
 
-function createNewDictionary() {
+function createNewDictionary(isCancelable) {
     // get name for new dictionary
     var name = "";
     while(name.length == 0) {
         name = prompt("Enter new name for new dictionary", "dictionary");
         if(name === null) {
             // user hits "cancel" in prompt
-            name = null;
-            break;
+            if(isCancelable) {
+                name = null;
+                break;
+            } else {
+                name = "";
+                alert("No dictionary found. Please enter a valid name to create one.");
+            }
+
         }
     }
     if(name) {
