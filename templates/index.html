@@ -28,32 +28,10 @@
 	</div>
 	
 	<div class="row">
-		<div class="cell" style="text-align:center">
-			<div class="buttonGroup">
-				<img class="button" id="navigate"     title="Navigator (esc)"				src="{{ url_for('static', filename='img/navigate.svg') }}" />
-				<img class="button" id="home"         title="Home"							src="{{ url_for('static', filename='img/home.svg') }}" />
-				<img class="button" id="save"         title="Save annotations (ctrl + s)"	src="{{ url_for('static', filename='img/save.svg') }}" />
-			</div>
-			<div class="buttonGroup">
-				<img class="button" id="select"       title="Select (alt + left mouse button)"   																src="{{ url_for('static', filename='img/select.svg') }}" />
-				<img class="button" id="draw"         title="Draw (ctrl + left mouse button [switch to &quot;Draw polygon&quot; by pressing &quot;d&quot;])"	src="{{ url_for('static', filename='img/draw.svg') }}" />
-				<img class="button" id="draw-polygon" title="Draw polygon (ctrl + left mouse button [switch to &quot;Draw&quot; by pressing &quot;d&quot;])"	src="{{ url_for('static', filename='img/draw-polygon.svg') }}" />
-			</div>
-			<div class="buttonGroup">
-				<img class="button" id="distance"       title="Measure distance (ctrl + q)"							src="{{ url_for('static', filename='img/ruler.svg') }}" />
-				<img class="button" id="area"       	title="Measure area of object (ctrl + ?)"					src="{{ url_for('static', filename='img/size.svg') }}" />
-				<img class="button" id="addpoi"			title="Add Point of Interest (shift + left mouse button)"	src="{{ url_for('static', filename='img/poi.svg') }}"/>
-			</div>
-		</div>
-	</div>
-	
-	<div class="row">
 		<div class="cell">
 			<br />
-			Labels (POI:
-			<span id="poi-count"></span>
-			)
-			<img class="eye" id="toggle-poi"	title="Toggle visibility of all Points of Interest"	onclick="togglePois()"	src="{{ url_for('static', filename='img/eyeOpened.svg') }}"/>
+			Labels
+			<img class="eye" id="toggle-poi"	style="padding-left:5px;padding-right:30px;"	title="Toggle visibility of all Regions"	onclick="toggleAllRegions()"	src="{{ url_for('static', filename='img/eyeOpened.svg') }}"/>
 			<div id="regionList"></div>
 		</div>
 	</div>

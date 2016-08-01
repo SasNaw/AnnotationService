@@ -414,6 +414,20 @@ function changeRegionName(reg,name) {
 
 /*** toggle visibility of region
 ***/
+function toggleAllRegions() {
+    var toggleEye = $('#toggle-poi');
+    if(toggleEye[0].src.indexOf("eyeOpened.svg") === -1) {
+        toggleEye.attr('src', staticPath +'/img/eyeOpened.svg');
+    } else {
+        toggleEye.attr('src', staticPath + '/img/eyeClosed.svg');
+    }
+    for(var i=0; i<labelDictionary.length; i++) {
+        var eye = $('#eye_' + labelDictionary[i].uid);
+        if(eye[0].src != toggleEye[0].src)
+        toggleRegions(labelDictionary[i].uid);
+    }
+}
+
 function toggleRegions(uid) {
     if( debug ) console.log("< toggle region");
     var regions = ImageInfo[0].Regions;
@@ -1650,32 +1664,44 @@ $(document).keydown(function(e) {
         selectNextLabel();
     } else if(e.keyCode == 16) {
         // shift
+        $('body').css('cursor','cell');
         selectToolOnKeyPress("addpoi");
     } else if(e.keyCode == 17) {
         // ctrl
+        $('body').css('cursor','url(/static/cursors/drawFree.png),auto');
         selectToolOnKeyPress("draw");
     } else if(e.keyCode == 18 || e.keyCode == 225) {
         // alt || alt gr
+        $('body').css('cursor','move');
         selectToolOnKeyPress("select");
     } else if(e.keyCode == 27) {
         // esc
         deselectRegion(region);
-        // clearToolSelection();
     } else if (e.keyCode == 46) {
         cmdDeleteSelected();
     } else if(e.keyCode == 68) {
         // ctrl + d
         if(e.ctrlKey) {
             e.preventDefault();
-            selectedTool = selectedTool == "draw" ? "draw-polygon" : "draw";
-            selectTool();
+            if(selectedTool == "draw") {
+                $('body').css('cursor','url(/static/cursors/drawPoly.png),auto');
+                selectToolOnKeyPress("draw-polygon");
+            } else {
+                $('body').css('cursor','url(/static/cursors/drawFree.png),auto');
+                selectToolOnKeyPress("draw");
+            }
         }
     } else if(e.keyCode == 81) {
         // ctrl + q
         if(e.ctrlKey) {
-            selectedTool = selectedTool == "draw" ? "distance" : selectedTool == "distance" ? "area" : "draw" ;
-            selectTool();
-            navEnabled = false;
+            e.preventDefault();
+            if(selectedTool == "draw") {
+                $('body').css('cursor','url(/static/cursors/ruler.png),auto');
+                selectToolOnKeyPress("distance");
+            } else {
+                $('body').css('cursor','url(/static/cursors/drawFree.png),auto');
+                selectToolOnKeyPress("draw");
+            }
         }
     } else if(e.keyCode == 83) {
         // ctrl + s
@@ -1756,6 +1782,7 @@ $(document).keyup(function(e) {
         elArea.parentNode.removeChild(elArea);
     }
     if(e.keyCode == 16 || e.keyCode == 17 || e.keyCode == 18 || e.keyCode == 225) {
+        $('body').css('cursor','auto');
         // shift || ctrl || alt || alt gr
         selectedTool = tmpTool;
         navEnabled = true;
