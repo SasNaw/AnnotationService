@@ -35,6 +35,8 @@ var staticPath;                 // path to flasks static folder
 var slide;                      // slide object with (file-)name, url and mpp
 var labelDictionary = [];       // dictionary with labels
 var currentLabel = {label:"no label"};  // currently selected label
+var countAll = 0;
+var countLabel = {};
 
 /***0
     Label handling functions
@@ -60,7 +62,8 @@ function appendLabelToList(label) {
         "style='background-color:rgba(",
         parseInt(label.color.red),",",parseInt(label.color.green),",",parseInt(label.color.blue),",",label.alpha,
         ")'></div>",
-        "<span class='region-name' id='name_" + label.uid + "' style='overflow:hidden'>" + label.label + "</span><br/>",
+        "<span class='region-name' id='name_" + label.uid + "' style='overflow:hidden'>" + label.label +
+        '</span> (<span id="count_' + label.uid + '">0</span>)<br/>',
     ].join(" ");
 
     var el = $(str);
@@ -74,6 +77,9 @@ function appendLabelToList(label) {
     // select latest label
     var tags = $("#regionList > .region-tag");
     selectLabel(tags[tags.length - 1]);
+
+    // create count entry
+    countLabel[label.uid] = 0;
 }
 
 function appendLabelsToList() {
@@ -152,9 +158,6 @@ function newPoi(point, name, pathInfo) {
     path.add(new paper.Point(x+0.1, y-0.1));
     path.closed = true;
 
-    poiCount++;
-    $("#poi-count").html(poiCount);
-
     return path;
 }
 
@@ -208,6 +211,11 @@ function newRegion(arg, imageNumber) {
 
 	// push the new region to the Regions array
 	ImageInfo[imageNumber]["Regions"].push(reg);
+    // increase region count
+    countAll++;
+    $('#count_all').html(countAll);
+    countLabel[reg.uid] += 1;
+    $('#count_'+reg.uid).html(countLabel[reg.uid]);
     return reg;
 }
 
@@ -265,10 +273,6 @@ function removeRegion(reg, imageNumber) {
 		// remove from paths
 		reg.path.remove();
 	}
-    if(reg.point) {
-        poiCount--;
-        $("#poi-count").html(poiCount);
-    }
 
     // remove context reference
     for(var i=0; i<ImageInfo[0].Regions.length; i++) {
@@ -279,7 +283,12 @@ function removeRegion(reg, imageNumber) {
             }
         }
     }
-    updateRegionList();
+    // lower region count
+    countAll--;
+    // updateRegionList();
+    $('#count_'+reg.uid).innerHTML(countLabel[reg.uid]);
+    $('#count_all').html(countAll);
+    countLabel[reg.uid] -= 1;
 }
 
 function selectRegion(reg) {
