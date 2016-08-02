@@ -213,8 +213,8 @@ function newRegion(arg, imageNumber) {
 	ImageInfo[imageNumber]["Regions"].push(reg);
     // increase region count
     countAll++;
-    $('#count_all').html(countAll);
     countLabel[reg.uid] += 1;
+    $('#count_all').html(countAll);
     $('#count_'+reg.uid).html(countLabel[reg.uid]);
     return reg;
 }
@@ -286,9 +286,9 @@ function removeRegion(reg, imageNumber) {
     // lower region count
     countAll--;
     // updateRegionList();
-    $('#count_'+reg.uid).innerHTML(countLabel[reg.uid]);
-    $('#count_all').html(countAll);
     countLabel[reg.uid] -= 1;
+    $('#count_'+reg.uid).html(countLabel[reg.uid]);
+    $('#count_all').html(countAll);
 }
 
 function selectRegion(reg) {
@@ -507,18 +507,38 @@ function updateRegionList() {
 }
 
 function checkRegionSize(reg) {
-    if( reg.path.length > 3 ) {
-        return;
-    }
-    else {
-        removeRegion(region, currentImage);
-    }
+    // if( reg.path.length > 3 ) {
+    //     return;
+    // }
+    // else {
+    //     removeRegion(region, currentImage);
+    // }
 }
 
 
 /***2
     Interaction: mouse and tap
 */
+function convertPathToImgCoordinates(point) {
+    // convert to screen coordinates
+    var screenCoords = paper.view.projectToView(point);
+    // convert to viewport coordinates
+    var viewportCoords = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(screenCoords.x, screenCoords.y));
+    // convert to image coordinates
+    var imgCoords = viewer.viewport.viewportToImageCoordinates(viewportCoords);
+    return imgCoords;
+}
+
+function convertImgToPathCoordinates(point) {
+    // convert to viewport coordinates
+    var viewportCoords = viewer.viewport.imageToViewportCoordinates(point);
+    // convert to screen coordinates
+    var pixel = viewer.viewport.pixelFromPoint(viewportCoords);
+    // convert to project coordinates
+    var projectCoords = paper.view.viewToProject(pixel);
+    return projectCoords;
+}
+
 function clickHandler(event){
     if( debug ) {
     	console.log("> clickHandler");
@@ -757,7 +777,7 @@ function mouseDown(x,y) {
 
     if(selectedTool == "select" || selectedTool == "area") {
         var hitResult = paper.project.hitTest(point, {
-            tolerance: 10,
+            tolerance: 0,
             stroke: true,
             segments: true,
             fill: true,
@@ -894,7 +914,7 @@ function mouseDrag(x,y,dx,dy) {
         region.path.add(point);
     } else if( selectedTool == "select") {
         // event.stopHandlers = true;
-        for( i in ImageInfo[currentImage]["Regions"] ) {
+        for( var i in ImageInfo[currentImage]["Regions"] ) {
             var reg = ImageInfo[currentImage]["Regions"][i];
             if(reg.path) {
                 if( reg.path.selected ) {
@@ -924,17 +944,8 @@ function mouseDrag(x,y,dx,dy) {
 
 function getDistance() {
     // get project coordinates of ruler segments
-    var point1 = ruler.segments[0].point;
-    var point2 = ruler.segments[1].point;
-    // convert to screen coordinates
-    point1 = paper.view.projectToView(point1);
-    point2 = paper.view.projectToView(point2);
-    // convert to viewport coordinates
-    point1 = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(point1.x, point1.y));
-    point2 = viewer.viewport.pointFromPixel(new OpenSeadragon.Point(point2.x, point2.y));
-    // convert to image coordinates
-    point1 = viewer.viewport.viewportToImageCoordinates(point1);
-    point2 = viewer.viewport.viewportToImageCoordinates(point2);
+    var point1 = convertPathToImgCoordinates(ruler.segments[0].point);
+    var point2 = convertPathToImgCoordinates(ruler.segments[1].point);
 
     var pxDistance = Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
     return Math.round((pxDistance * slide.mpp) * 100) / 100;
@@ -951,10 +962,32 @@ function mouseUp() {
     if( newRegionFlag == true ) {
     	if(region.path) {
     		region.path.closed = true;
-		    region.path.fullySelected = true;
 		    // to delete all unnecessary segments while preserving the form of the region to make it modifiable; & adding handles to the segments
 		    var orig_segments = region.path.segments.length;
-		    region.path.simplify(0);
+
+            var tmpPath = region.path;
+
+            var path = new paper.Path();
+            path.selected = false;
+            path.fullySelected = false;
+            for(var i=0; i<region.path.segments.length; i++) {
+                path.add(convertPathToImgCoordinates(region.path.segments[i].point))
+            }
+            path.remove();
+            path.simplify(0);
+
+            var simplePath = new paper.Path();
+            for(var i=0; i<path.segments.length; i++) {
+                simplePath.add(convertImgToPathCoordinates(path.segments[i].point))
+            }
+            simplePath.remove();
+
+            for(var i=0; i<ImageInfo[currentImage].Regions.length; i++) {
+                if(ImageInfo[currentImage].Regions[i].path == tmpPath) {
+                    ImageInfo[currentImage].Regions[i] = region;
+                }
+            }
+
 		    var final_segments = region.path.segments.length;
 		    if( debug > 2 ) console.log( parseInt(final_segments/orig_segments*100) + "% segments conserved" );
     	}
