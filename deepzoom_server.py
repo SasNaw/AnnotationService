@@ -176,6 +176,17 @@ def createDictionary():
         return respone
 
 
+@app.route('/getDictionaries')
+def getDictionaries():
+    dir = 'static/dictionaries/'
+    if os.path.isfile(dir):
+        # no dictionaries found
+        return '-1'
+    else:
+        # return dictionaries
+        return json.dumps(os.listdir(dir))
+
+
 if __name__ == '__main__':
     parser = OptionParser(usage='Usage: %prog [options] [slide]')
     parser.add_option('-B', '--ignore-bounds', dest='DEEPZOOM_LIMIT_BOUNDS',

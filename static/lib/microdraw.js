@@ -34,6 +34,7 @@ var ruler;
 var staticPath;                 // path to flasks static folder
 var slide;                      // slide object with (file-)name, url and mpp
 var labelDictionary = [];       // dictionary with labels
+var dictionaries = [];          // list of dictionaries
 var currentLabel = {label:"no label"};  // currently selected label
 var countAll = 0;
 var countLabel = {};
@@ -582,6 +583,11 @@ function addPoi(event) {
 
 function pressHandler(event){
     if( debug ) console.log("> pressHandler");
+
+    var dictListContent = $('#dicts_content');
+    if(dictListContent.is(":visible")) {
+        dictListContent.hide()
+    }
 
     if( !navEnabled ) {
         event.stopHandlers = true;
@@ -1366,6 +1372,10 @@ function saveJson(json, filePath) {
     console.log("< writing json to file");
 }
 
+function saveConfig() {
+    saveJson(config, "configuration.json");
+}
+
 function saveDictionary() {
     saveJson(labelDictionary, "dictionaries/" + config.dictionary);
 }
@@ -1519,6 +1529,9 @@ function loadConfiguration() {
         config.defaultStrokeWidth = 1;
         config.defaultFillAlpha = 0.5;
 
+        // get list of dictionaries
+        getDictionaryList();
+
         // load label dictionary
         loadDictionary(staticPath + "/dictionaries/" + config.dictionary);
 
@@ -1542,23 +1555,45 @@ function loadConfiguration() {
     return def.promise();
 }
 
+function toggleDictPicker() {
+    var dictListContent = $('#dicts_content');
+    dictListContent.is(":visible") ? dictListContent.hide() : dictListContent.show();
+}
+
+function dictListClick(index) {
+    config.dictionary = dictionaries[index];
+    saveConfig();
+    loadDictionary(staticPath + "/dictionaries/" + dictionaries[index]);
+}
+
+function getDictionaryList() {
+    $.ajax({
+        url: "/getDictionaries",
+        dataType: "json",
+        success: function (localDicts) {
+            var content = "";
+            dictionaries = localDicts;
+            for( var i in dictionaries) {
+                content += '<p class="dictListEntry" onClick="dictListClick(' + i + ')">'+dictionaries[i]+'</p>';
+            }
+            $('#dicts_content').html(content);
+        }
+    });
+}
+
 function loadDictionary(path) {
     $.ajax({
         url: path,
         dataType: "json",
         success: function (dictionary) {
             labelDictionary = dictionary;
+            $('#currentDictName').html(config.dictionary);
             appendLabelsToList();
         },
         error: function (data) {
             createNewDictionary(false);
         }
     });
-    // $.getJSON(path, function(dictionary) {
-    //
-    //     labelDictionary = dictionary;
-    //     appendLabelsToList();
-    // });
 }
 
 function initAnnotationService() {
@@ -1718,7 +1753,12 @@ $(document).keydown(function(e) {
         selectToolOnKeyPress("select");
     } else if(e.keyCode == 27) {
         // esc
-        deselectRegion(region);
+        var dictListContent = $('#dicts_content');
+        if(dictListContent.is(":visible")) {
+            dictListContent.hide()
+        } else {
+            deselectRegion(region);
+        }
     } else if (e.keyCode == 46) {
         cmdDeleteSelected();
     } else if(e.keyCode == 68) {
@@ -1763,8 +1803,8 @@ $(document).keydown(function(e) {
             if(label) {
                 appendLabelToList(label);
             }
-            clearToolSelection();
         }
+        clearToolSelection();
     }
 });
 
@@ -1802,13 +1842,14 @@ function createNewDictionary(isCancelable) {
             url : "/createDictionary?name="+name,
         }).done(function (response) {
             if(response === "error") {
-                alert("Couldn't create dictionary. Name is already taken!")
+                alert("Couldn't create dictionary since there is already a dictionary with that name!");
             } else {
                 var json = JSON.parse(response);
                 var path = json["path"];
                 var name = json["name"];
                 config.dictionary = name;
                 loadDictionary(path);
+                getDictionaryList();
             }
         });
     }
