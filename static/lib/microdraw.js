@@ -1721,14 +1721,24 @@ function initAnnotationService() {
     return def.promise();
 }
 
+function help(show) {
+    if(show) {
+        $('#helpContent').show();
+    } else {
+        $('#helpContent').hide();
+    }
+}
+
 function toggleMenu () {
     if( $('#menuBar').css('display') == 'none' ) {
-        $('#menuBar').css('display', 'block');
-        $('#menuButton').css('display', 'none');
+        $('#menuBar').show();
+        $('#menuButton').hide();
+        $('#helpButton').show();
     }
     else {
-        $('#menuBar').css('display', 'none');
-        $('#menuButton').css('display', 'block');
+        $('#menuBar').hide();
+        $('#menuButton').show();
+        $('#helpButton').hide();
     }
 }
 

@@ -12,7 +12,22 @@
 
 <div id="menuButton">
 	<img class="button" id="openMenu" title="Menu" src="{{ url_for('static', filename='img/openMenu.svg') }}"/>
-	
+</div>
+
+<div id="helpButton">
+	<img id="helpMenu" src="{{ url_for('static', filename='img/helpMenu.svg') }}" onmouseover="help(1)" onmouseout="help(0)"/>
+</div>
+
+<!-- Helper window -->
+<div id="helpContent">
+	ctrl (hold)  + left mouse (hold) = freehand drawing mode </br></br>
+	ctrl (hold)  + d (tap) = switch between freehand and polygon drawing mode</br></br>
+	ctrl (hold)  + q (tap) = switch between freehand drawing and distance measuring mode</br></br>
+	shift (hold) + left mouse (hold) = place point of interest</br></br>
+	alt (hold) + left mouse (click) = select region</br></br>
+	tab (press) = iterate through labels </br></br>
+	del (press) = delete selected region </br></br>
+	esc (press) = deselect a selected region </br>
 </div>
 
 <!-- Toolbar -->
