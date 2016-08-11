@@ -28,15 +28,15 @@ If you want to use a custom python script for automated segmentation, place it i
 
 
 ## How to use:
-Open a web browser of your choice and browse to 127.0.0.1:5000/wsi/[[sub path to WSI/]name of WSI]. The specified WSI will be loaded and viewed in AnnoationService. When started first, an examplary dictionary will be loaded. A new dictionary can be created over the shortcut <shift> + <ctrl> + <+>. New entries can be added via <ctrl> + <+>. Existing dictionaries can be switched over a click on the "Dictionary" section.
+Open a web browser of your choice and browse to 127.0.0.1:5000/wsi/[[sub path to WSI/]name of WSI]. The specified WSI will be loaded and viewed in AnnoationService. When started first, an examplary dictionary will be loaded. A new dictionary can be created over the shortcut shift + ctrl + "+". New entries can be added via ctrl + "+". Existing dictionaries can be switched WITH a click on the "Dictionary" section.
 
 The mouse and arrow keys can be used to navigate over the WSI. For other actions, short cuts and hot keys are used:
-- ctrl (hold)  + left mouse (hold) = freehand drawing mode </br></br>
-- ctrl (hold)  + d (tap) = switch between freehand and polygon drawing mode</br></br>
-- ctrl (hold)  + q (tap) = switch between freehand drawing and distance measuring mode</br></br>
-- shift (hold) + left mouse (hold) = place point of interest</br></br>
-- alt (hold) + left mouse (click) = select region</br></br>
-- ctrl + s = save annotations </br></br>
-- tab = iterate through labels </br></br>
-- del = delete selected region </br></br>
-- esc = deselect a selected region </br>
+- ctrl (hold)  + left mouse (hold) = freehand drawing mode
+- ctrl (hold)  + d (tap) = switch between freehand and polygon drawing mode
+- ctrl (hold)  + q (tap) = switch between freehand drawing and distance measuring mode
+- shift (hold) + left mouse (hold) = place point of interest
+- alt (hold) + left mouse (click) = select region
+- ctrl + s = save annotations
+- tab = iterate through labels
+- del = delete selected region
+- esc = deselect a selected region
