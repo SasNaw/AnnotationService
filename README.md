@@ -12,6 +12,7 @@ AnnotationService is a web application which is intended to make annotations on 
 
 ## Dependencies
 - Python installation of [OpenSlide](http://openslide.org/download/)
+- [Flask](http://flask.pocoo.org/)
 
 ## Before use
 To use AnnotationService, some requirements must be met:
