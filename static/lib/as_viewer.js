@@ -171,38 +171,24 @@ function newRegion(arg, imageNumber) {
         reg.uid = currentLabel.uid;
     }
 
-	if(arg.x && arg.y || arg.point) {
-		// point of interest
-		if( arg.name ) {
-			reg.name = arg.name;
-		} else {
-			reg.name = "poi " + reg.uid;
-		}
-        if(arg.point) {
-            reg.point = arg.point;
-        } else {
-	    	reg.point = arg;
-        }
-        reg.path = newPoi(reg.point, reg.name, arg.path);
-	}
-	else {
-		// regular region
-		if( arg.name ) {
-			reg.name = arg.name;
-		}
-		else {
-			reg.name = currentLabel.label;
-		}
-		var color = currentLabel.color ? currentLabel.color : regionHashColor(reg.name);
-		if( arg.path ) {
-			reg.path = arg.path;
-		    reg.path.strokeWidth = arg.path.strokeWidth ? arg.path.strokeWidth : config.defaultStrokeWidth;
-		    reg.path.strokeColor = arg.path.strokeColor ? arg.path.strokeColor : config.defaultStrokeColor;
-			reg.path.strokeScaling = false;
-			reg.path.fillColor = arg.path.fillColor ? arg.path.fillColor :'rgba('+color.red+','+color.green+','+color.blue+','+config.defaultFillAlpha+')';
-			reg.path.selected = false;
-		}
-	}
+    if( arg.name ) {
+        reg.name = arg.name;
+    }
+    else {
+        reg.name = currentLabel.label;
+    }
+    if( arg.imgCoords ) {
+        reg.imgCoords = arg.imgCoords
+    }
+    var color = currentLabel.color ? currentLabel.color : regionHashColor(reg.name);
+    if( arg.path ) {
+        reg.path = arg.path;
+        reg.path.strokeWidth = arg.path.strokeWidth ? arg.path.strokeWidth : config.defaultStrokeWidth;
+        reg.path.strokeColor = arg.path.strokeColor ? arg.path.strokeColor : config.defaultStrokeColor;
+        reg.path.strokeScaling = false;
+        reg.path.fillColor = arg.path.fillColor ? arg.path.fillColor :'rgba('+color.red+','+color.green+','+color.blue+','+config.defaultFillAlpha+')';
+        reg.path.selected = false;
+    }
 
     reg.context = arg.context ? arg.context : [];
 
@@ -246,7 +232,6 @@ function findContextRegion(region1) {
             }
         }
     }
-    updateRegionList();
     selectRegion(region1);
 }
 
@@ -419,7 +404,6 @@ function changeRegionName(reg,name) {
     // Update region tag
     $(".region-tag#" + reg.uid + ">.region-name").text(name);
     $(".region-tag#" + reg.uid + ">.region-color").css('background-color','rgba('+color.red+','+color.green+','+color.blue+',0.67)');
-    updateRegionList();
 }
 
 /*** toggle visibility of region
@@ -483,40 +467,6 @@ function changeRegionAnnotationStyle(uid) {
     if( debug ) console.log("> changeRegionAnnotationStyle");
 }
 
-function updateRegionList() {
-    // if( debug ) console.log("> updateRegionList");
-    //
-    // // remove all entries in the regionList
-    // $("#regionList > .region-tag").each(function() {
-    //     $(this).remove();
-    // });
-    //
-    // // adding entries corresponding to the currentImage
-    // for( var i = 0; i < ImageInfo[currentImage]["Regions"].length; i++ ) {
-    //     var reg = ImageInfo[currentImage]["Regions"][i];
-    //     // append region tag to regionList
-    //     var el = $(regionTag(reg.name,reg.uid, reg.context));
-    //     $("#regionList").append(el);
-    //
-    //     // handle single click on computers
-    //     el.click(singlePressOnRegion);
-    //     // handle double click on computers
-    //     el.dblclick(doublePressOnRegion);
-    //     // handle single and double tap on touch devices
-    //     el.on("touchstart",handleRegionTap);
-    // }
-}
-
-function checkRegionSize(reg) {
-    // if( reg.path.length > 3 ) {
-    //     return;
-    // }
-    // else {
-    //     removeRegion(region, currentImage);
-    // }
-}
-
-
 /***2
     Interaction: mouse and tap
 */
@@ -547,10 +497,7 @@ function clickHandler(event){
 		var viewportPoint = viewer.viewport.pointFromPixel(webPoint);
     }
     event.stopHandlers = !navEnabled;
-    if( selectedTool == "draw") {
-        checkRegionSize(region);
-    }
-    else if( selectedTool == "addpoi") {
+    if( selectedTool == "addpoi") {
 		addPoi(event);
 	}
 }
@@ -654,7 +601,6 @@ function singlePressOnRegion(event) {
         if(contextFlag) {
             reg.context.push(newName);
             contextFlag = false;
-            updateRegionList();
             selectRegion(reg);
         } else {
             changeRegionName(reg, newName);
@@ -706,7 +652,6 @@ function singlePressOnRegion(event) {
                 selectRegion(reg);
                 var index = clickedId.split("/")[1];
                 reg.context.splice(index, 1);
-                updateRegionList();
                 selectRegion(reg);
             }
         } else {
@@ -778,7 +723,7 @@ function mouseDown(x,y) {
     mouseUndo = getUndo();
     var prevRegion = null;
     var point = paper.view.viewToProject(new paper.Point(x,y));
-
+    var imgCoord = viewer.viewport.windowToImageCoordinates(new OpenSeadragon.Point(x,y));
     handle = null;
 
     if(selectedTool == "select" || selectedTool == "area") {
@@ -848,7 +793,7 @@ function mouseDown(x,y) {
         // start a new region
         var path = new paper.Path({segments:[point]})
         path.strokeWidth = config.defaultStrokeWidth;
-        region = newRegion({path:path});
+        region = newRegion({path:path, imgCoords:[imgCoord]});
         // signal that a new region has been created for drawing
         newRegionFlag = true;
 
@@ -864,7 +809,7 @@ function mouseDown(x,y) {
             // Start a new Region with alpha 0
             var path = new paper.Path({segments:[point]})
             path.strokeWidth = config.defaultStrokeWidth;
-            region = newRegion({path:path});
+            region = newRegion({path:path, imgCoords:[imgCoord]});
             region.path.fillColor.alpha = 0;
             region.path.selected = true;
             drawingPolygonFlag = true;
@@ -879,6 +824,7 @@ function mouseDown(x,y) {
             } else {
                 // add point to region
                 region.path.add(point);
+                region.imgCoords.push(imgCoord)
                 commitMouseUndo();
             }
         }
@@ -904,6 +850,7 @@ function mouseDrag(x,y,dx,dy) {
 
     // transform screen coordinate into world coordinate
     var point = paper.view.viewToProject(new paper.Point(x,y));
+    var imgCoord = viewer.viewport.windowToImageCoordinates(new OpenSeadragon.Point(x,y));
 
     // transform screen delta into world delta
     var orig = paper.view.viewToProject(new paper.Point(0,0));
@@ -918,6 +865,7 @@ function mouseDrag(x,y,dx,dy) {
         commitMouseUndo();
     } else if( selectedTool == "draw") {
         region.path.add(point);
+        region.imgCoords.push(imgCoord)
     } else if( selectedTool == "select") {
         // event.stopHandlers = true;
         for( var i in ImageInfo[currentImage]["Regions"] ) {
@@ -1205,7 +1153,6 @@ function applyUndo(undo) {
 
     }
     drawingPolygonFlag = undo.drawingPolygonFlag;
-    updateRegionList();
 }
 
 /**
@@ -1265,34 +1212,6 @@ function cmdDeleteSelected() {
             paper.view.draw();
             break;
         }
-    }
-}
-
-function cmdPaste() {
-    if( copyRegion !== null ) {
-        var undoInfo = getUndo();
-        saveUndo(undoInfo);
-        console.log( "paste " + copyRegion.name );
-        if( findRegionByName(copyRegion.name) ) {
-            copyRegion.name += " Copy";
-        }
-        var reg = JSON.parse(JSON.stringify(copyRegion));
-        reg.path = new paper.Path();
-        reg.path.importJSON(copyRegion.path);
-        reg.path.fullySelected = true;
-        var color = regionHashColor(reg.name);
-        reg.path.fillColor = 'rgba(' + color.red + ',' + color.green + ',' + color.blue + ',0.5)';
-        newRegion({name:copyRegion.name,path:reg.path});
-    }
-    paper.view.draw();
-}
-
-function cmdCopy() {
-    if( region !== null ) {
-    var json = region.path.exportJSON();
-    copyRegion = JSON.parse(JSON.stringify(region));
-    copyRegion.path = json;
-    console.log( "< copy " + copyRegion.name );
     }
 }
 
@@ -1471,16 +1390,6 @@ function initAnnotationOverlay(data) {
         paper.setup(canvas[0]);
         ImageInfo[currentImage]["projectID"] = paper.project.index;
 
-        // load regions from database
-        if( config.useDatabase ) {
-            microdrawDBLoad()
-            .then(function(){
-                $("#regionList").height($(window).height() - $("#regionList").offset().top);
-                updateRegionList();
-                paper.view.draw();
-            });
-        }
-
         if( debug ) console.log('Set up new project, currentImage: ' + currentImage + ', ID: ' + ImageInfo[currentImage]["projectID"]);
     }
 
@@ -1494,7 +1403,6 @@ function initAnnotationOverlay(data) {
     var height = $("body").height();
     paper.view.viewSize = [width, height];
     paper.settings.handleSize = 10;
-    updateRegionList();
     paper.view.draw();
 
     /* RT: commenting this line out solves the image size issues */
@@ -1545,9 +1453,6 @@ function loadConfiguration() {
         }
         for( var i = 0; i < config.removeTools.length; i++ ) {
             $("#" + config.removeTools[i]).remove();
-        }
-        if( config.useDatabase == false ) {
-            $("#save").remove();
         }
         def.resolve();
     });

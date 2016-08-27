@@ -66,7 +66,7 @@ def index_dzi(file_path):
             slide_mpp = (float(mpp_x) + float(mpp_y)) / 2
     except IOError:
         slide_mpp = 0
-    return render_template('index.html', slide_url=slide_url, slide_mpp=slide_mpp, file_name=file_name)
+    return render_template('as_viewer.html', slide_url=slide_url, slide_mpp=slide_mpp, file_name=file_name)
 
 
 @app.route('/wsi/<path:file_path>')
@@ -94,7 +94,7 @@ def index_wsi(file_path):
     except (KeyError, ValueError):
         slide_mpp = 0
     slide_url = url_for('dzi', slug=SLIDE_NAME)
-    return render_template('index.html', slide_url=slide_url, slide_mpp=slide_mpp, file_name=file_path)
+    return render_template('as_viewer.html', slide_url=slide_url, slide_mpp=slide_mpp, file_name=file_path)
 
 
 @app.route('/<slug>.dzi')
