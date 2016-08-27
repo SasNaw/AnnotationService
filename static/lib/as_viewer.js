@@ -127,41 +127,6 @@ function selectLabel(el) {
     }
 }
 
-/***1
-    Region handling functions
-*/
-function newPoi(point, name, pathInfo) {
-    var path = new paper.Path();
-    var x = point.x;
-    var y = point.y;
-    if(pathInfo) {
-        path.strokeWidth = pathInfo.strokeWidth ? pathInfo.strokeWidth : config.defaultStrokeWidth;
-        path.strokeColor = pathInfo.strokeColor ? pathInfo.strokeColor : config.defaultStrokeColor;
-        path.strokeScaling = pathInfo.strokeScaling;
-        path.fillColor = pathInfo.fillColor;
-    } else {
-        var color = regionHashColor(name);
-
-        path.strokeWidth = config.defaultStrokeWidth;
-        path.strokeColor = config.defaultStrokeColor;
-        path.strokeScaling = false;
-        path.fillColor = 'rgba('+color.red+','+color.green+','+color.blue+','+0.2+')';
-    }
-    path.selected = false;
-
-    // path.add(new paper.Point(x, y));
-    // path.add(new paper.Point(x-1, y-3));
-    // path.add(new paper.Point(x, y-2));
-    // path.add(new paper.Point(x+1, y-3));
-    path.add(new paper.Point(x-0.1, y-0.1));
-    path.add(new paper.Point(x-0.1, y+0.1));
-    path.add(new paper.Point(x+0.1, y+0.1));
-    path.add(new paper.Point(x+0.1, y-0.1));
-    path.closed = true;
-
-    return path;
-}
-
 function newRegion(arg, imageNumber) {
 	if( debug ) console.log("> newRegion");
     var reg = {};
@@ -206,6 +171,9 @@ function newRegion(arg, imageNumber) {
     return reg;
 }
 
+/***1
+ Region handling functions
+ */
 function findContextRegion(region1) {
     for(var i=0; i<ImageInfo[0].Regions.length; i++) {
         var region2 = ImageInfo[0].Regions[i];
@@ -508,24 +476,37 @@ function addPoi(event) {
     var viewportPoint = viewer.viewport.pointFromPixel(webPoint);
     var imgCoord = viewer.viewport.viewportToImageCoordinates(viewportPoint);
 
-    var source = params.source.replace(".dzi", "_files/") + viewer.source.maxLevel + "/" +
-        Math.floor(imgCoord.x / 256) + "_" + Math.floor(imgCoord.y / 256) + ".jpeg";
-    source = source.substr(1, source.length-1);
-
     //call python script
     $.ajax({
-        type : "POST",
-        url : "runPython.php",
-        data : {script:config.segmentationScript, source:source, x:imgCoord.x, y:imgCoord.y}
+        type : "GET",
+        url : "/runSegmentation?x=" + imgCoord.x + "&y=" + imgCoord.y,
     }).done(function( o ) {
-        // do something
-        console.log("opencv: success!");
-        clearToolSelection();
+        if(o == "404") {
+            clearToolSelection();
+            alert("Server responded with 404. Provided script (" + config.segmentationScript + ") could not be found!");
+        } else {
+            var x = 0;
+            var y = 1;
+            // parse result to json
+            var imgCoords = JSON.parse(o);
+            // create path
+            var path = new paper.Path();
+            path.strokeWidth = config.defaultStrokeWidth;
+            var imgPoints = [];
+            for( var i in imgCoords ) {
+                var imgPoint = new OpenSeadragon.Point(imgCoords[i][x], imgCoords[i][y]);
+                var point = convertImgToPathCoordinates(imgPoint);
+                path.add(point);
+                imgPoints.push(imgPoint)
+            }
+            // create region
+            path.closed = true;
+            region = newRegion({path:path, imgCoords:imgPoints});
+            paper.view.draw();
+            findContextRegion(region);
+            console.log("opencv: success!");
+        }
     });
-
-	var reg = newRegion(point);
-    findContextRegion(reg);
-    paper.view.draw();
 }
 
 function pressHandler(event){
@@ -1219,8 +1200,8 @@ function clearToolSelection() {
 	selectedTool = "navigate";
     selectTool();
 	navEnabled = true;
+    $('body').css('cursor','auto');
 }
-
 function toolSelection(event) {
     if( debug ) console.log("> toolSelection");
 

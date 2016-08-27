@@ -1,1 +1,1 @@
-{"defaultStrokeColor":"black","dictionary":"example.json","removeTools":[],"hideToolbar":true,"segmentationScript":"opencv.py","defaultFillAlpha":0.5,"defaultStrokeWidth":1}
+{"defaultStrokeColor":"black","dictionary":"example.json","removeTools":[],"hideToolbar":true,"segmentationScript":"opencv_dummy","defaultFillAlpha":0.5,"defaultStrokeWidth":1}

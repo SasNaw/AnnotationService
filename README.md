@@ -21,11 +21,11 @@ To use AnnotationService, some requirements must be met:
 * those WSIs must be in a specific directory
 * if you want to use a custom python script for automatic segmentation of points of interest, it also must be in a specific folder 
 
-To start a local web server, go to the cloned directory and start the deepzoom_server.py script. A local web server will run on 127.0.0.1:5000. If this port is already in use you can specify a custom port via the -p [port] parameter.
+To start a local web server, go to the cloned directory and start as_server.py with a python interpreter. A local web server will run on 127.0.0.1:5000. If this port is already in use you can specify a custom port via the -p [port] parameter.
 
 Put your WSI files into [cloned directory]/static/wsi/; from there on, you can create any sub directory structure you want.
 
-If you want to use a custom python script for automated segmentation, place it in [cloned directory]/static/segmentation/. After that, open the configuration.json in [cloned directory]/static/ with a text editor of your choice and set the value of "segmentationScript" to the name of your custom script. If you want to create a sub folder structure for your custom scripts, also specify the path to the script from the segmentation/ directory, do not include the basic path ([cloned directory]/static/segmentation/) though!
+If you want to use a custom python script for automated segmentation, place it in [cloned directory]/static/segmentation/. After that, open the configuration.json in [cloned directory]/static/ with a text editor of your choice and set the value of "segmentationScript" to the name of your custom script.
 
 
 ## How to use:

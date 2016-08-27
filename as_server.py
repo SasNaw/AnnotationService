@@ -41,7 +41,6 @@ app = Flask(__name__)
 app.config.from_object(__name__)
 app.config.from_envvar('DEEPZOOM_TILER_SETTINGS', silent=True)
 
-
 class PILBytesIO(BytesIO):
     def fileno(self):
         '''Classic PIL doesn't understand io.UnsupportedOperation.'''
@@ -185,6 +184,31 @@ def getDictionaries():
     else:
         # return dictionaries
         return json.dumps(os.listdir(dir))
+
+
+# to use your own segmentation script, place the python file in "static/segmentation" and change the script name
+# in configuration.json (key: "segmentationScript"). Make sure, your script provides a "run(x,y)" function.
+# as_server will call the run function of your script and pass the x- and y-coordinate to it as function
+# parameters.
+# Your script must return a list of 2d coordinates. This list will be returned to the viewer as json. The viewer will
+# create a new region with the provided coordinates.
+@app.route("/runSegmentation")
+def runSegmentation():
+    x = request.args.get('x', '0')
+    y = request.args.get('y', '0')
+    with open("static/configuration.json", 'r') as file:
+        config = json.loads(file.read())
+        module_name = config.get("segmentationScript")
+    if(len(module_name) == 0):
+        print("ERROR: no segmentation script provided in configuration file (configuration.json)!")
+        return "404"
+    try:
+        module = __import__("static.segmentation.%s" % (module_name), fromlist=["segmentation"])
+        contour = module.run(x,y)
+        return json.dumps(contour)
+    except ImportError:
+        print("ERROR: provided segmentation script (" + module_name + ") not found!")
+        return "404"
 
 
 if __name__ == '__main__':
