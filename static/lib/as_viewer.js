@@ -192,10 +192,10 @@ function findContextRegion(region1) {
 
             if(isContextRegion) {
                 if(!isRegionAlreadyReferenced(region1, region2)) {
-                    region1.context.push(region2.uid);
+                    region1.context.push(region2.name);
                 }
                 if(!isRegionAlreadyReferenced(region2, region1)) {
-                    region2.context.push(region1.uid);
+                    region2.context.push(region1.name);
                 }
             }
         }
@@ -204,10 +204,8 @@ function findContextRegion(region1) {
 }
 
 function isRegionAlreadyReferenced(region1, region2) {
-    var region2Name = findRegionByUID(region2.uid);
     for(var i=0; i<region1.context.length; i++) {
-        var region1Name = findRegionByUID(region1.context[i]);
-        if(region1Name == region2Name) {
+        if(region1.context[i] == region2.name) {
             return true;
         }
     }
