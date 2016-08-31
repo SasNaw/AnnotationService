@@ -38,12 +38,13 @@ var dictionaries = [];          // list of dictionaries
 var currentLabel = {label:"no label"};  // currently selected label
 var countAll = 0;
 var countLabel = {};
+var labelIds = {};
 
 /***0
     Label handling functions
 */
 function newLabel() {
-    var uid = uniqueID();
+    var uid = uniqueID(true);
     var label = prompt("Enter new region name", "new label " + uid);
     if(label !== null) {
         label = label.length == 0 ? "untitled" + uid : label;
@@ -54,6 +55,15 @@ function newLabel() {
 
         return entry;
     }
+}
+
+function getLabelName(id) {
+    for(var i=0; i<labelDictionary.length; i++) {
+        if(labelDictionary[i].uid == id) {
+            return labelDictionary[i].label;
+        }
+    }
+    return -1;
 }
 
 function appendLabelToList(label) {
@@ -80,7 +90,8 @@ function appendLabelToList(label) {
     selectLabel(tags[tags.length - 1]);
 
     // create count entry
-    countLabel[label.uid] = 0;
+    labelIds[label.label] = label.uid;
+    countLabel[label.label] = 0;
 }
 
 function appendLabelsToList() {
@@ -133,7 +144,7 @@ function newRegion(arg, imageNumber) {
     if(arg.uid) {
         reg.uid = arg.uid;
     } else {
-        reg.uid = currentLabel.uid;
+        reg.uid = uniqueID();
     }
 
     if( arg.name ) {
@@ -165,9 +176,9 @@ function newRegion(arg, imageNumber) {
 	ImageInfo[imageNumber]["Regions"].push(reg);
     // increase region count
     countAll++;
-    countLabel[reg.uid] += 1;
+    countLabel[reg.name] += 1;
     $('#count_all').html(countAll);
-    $('#count_'+reg.uid).html(countLabel[reg.uid]);
+    $('#count_'+labelIds[reg.name]).html(countLabel[reg.name]);
     return reg;
 }
 
@@ -177,7 +188,7 @@ function newRegion(arg, imageNumber) {
 function findContextRegion(region1) {
     for(var i=0; i<ImageInfo[0].Regions.length; i++) {
         var region2 = ImageInfo[0].Regions[i];
-        if(region1.uid != region2.uid) {
+        if(region1.name != region2.name) {
             // find intersections
             var intersections = region1.path.getIntersections(region2.path);
             var isContextRegion = intersections.length > 0;
@@ -238,8 +249,8 @@ function removeRegion(reg, imageNumber) {
     // lower region count
     countAll--;
     // updateRegionList();
-    countLabel[reg.uid] -= 1;
-    $('#count_'+reg.uid).html(countLabel[reg.uid]);
+    countLabel[reg.name] -= 1;
+    $('#count_'+labelIds[reg.name]).html(countLabel[reg.name]);
     $('#count_all').html(countAll);
 }
 
@@ -316,10 +327,13 @@ function findRegionByName(name) {
     return null;
 }
 
-function uniqueID() {
+function uniqueID(labelDictionary) {
     if(labelDictionary) {
         if( debug ) console.log("> uniqueID");
         return labelDictionary.length > 0 ? parseInt(labelDictionary[labelDictionary.length-1].uid) + 1 : 1;
+    } else {
+        var regions = ImageInfo[currentImage].Regions;
+        return regions[regions.length - 1]
     }
     return 0;
 }
@@ -384,16 +398,16 @@ function toggleAllRegions() {
     for(var i=0; i<labelDictionary.length; i++) {
         var eye = $('#eye_' + labelDictionary[i].uid);
         if(eye[0].src != toggleEye[0].src)
-        toggleRegions(labelDictionary[i].uid);
+        toggleRegions(labelDictionary[i].label);
     }
 }
 
-function toggleRegions(uid) {
+function toggleRegions(name) {
     if( debug ) console.log("< toggle region");
     var regions = ImageInfo[0].Regions;
     for(var i=0; i<regions.length; i++) {
         var reg = regions[i];
-        if(reg.uid == uid) {
+        if(reg.name == name) {
             if( reg.path.fillColor !== null ) {
                 reg.path.storeColor = reg.path.fillColor;
                 reg.path.fillColor = null;
@@ -408,13 +422,13 @@ function toggleRegions(uid) {
         }
     }
     paper.view.draw();
-    var eye = $('#eye_' + uid);
+    var eye = $('#eye_' + labelIds[name]);
     if(eye[0].src.indexOf("eyeOpened.svg") === -1) {
         eye.attr('src', staticPath +'/img/eyeOpened.svg');
     } else {
         eye.attr('src', staticPath + '/img/eyeClosed.svg');
         if(region) {
-            if(region.uid == uid) {
+            if(region.name == name) {
                 deselectRegion(region);
             }
         }
@@ -551,7 +565,7 @@ function singleClickOnLabel(event) {
 
     if(clickedId === "eye_" + el[0].id) {
         // toogle visibility
-        toggleRegions(el[0].id);
+        toggleRegions(getLabelName(el[0].id));
     } else if(clickedId === "color_" + el[0].id) {
         changeRegionAnnotationStyle(el[0].id);
     } else {
@@ -590,7 +604,7 @@ function singlePressOnRegion(event) {
 
         if(clickedId === "eye_" + uid) {
             // toogle visibility
-            toggleRegions(findRegionByUID(this.id));
+            toggleRegions(getLabelName(this.id));
         } else if(clickedId === "name_" + uid) {
             // Click on regionList (list or annotated regions)
             reg = findRegionByUID(uid);
@@ -666,7 +680,7 @@ function doublePressOnRegion(event) {
     }
     else {
         var reg = findRegionByUID(this.id);
-        toggleRegions(reg);
+        toggleRegions(reg.name);
     }
 }
 
@@ -997,7 +1011,7 @@ function onFillColorPicker(value) {
 
     for(var i=0; i<ImageInfo[0].Regions.length; i++) {
         var reg = ImageInfo[0].Regions[i];
-        if(reg.uid == annotationColorLabel.uid) {
+        if(reg.name == annotationColorLabel.label) {
             // change region color
             reg.path.fillColor = 'rgba(' + annotationColorLabel.color.red + ',' + annotationColorLabel.color.green +
                 ',' + annotationColorLabel.color.blue + ',' + annotationColorLabel.alpha + ')';
@@ -1684,6 +1698,7 @@ $(document).keydown(function(e) {
         if(e.ctrlKey) {
             e.preventDefault();
             saveRegions();
+            saveDictionary();
         }
     } else if(e.keyCode == 107) {
         e.preventDefault();
