@@ -333,7 +333,7 @@ function uniqueID(labelDictionary) {
         return labelDictionary.length > 0 ? parseInt(labelDictionary[labelDictionary.length-1].uid) + 1 : 1;
     } else {
         var regions = ImageInfo[currentImage].Regions;
-        return regions[regions.length - 1]
+        return regions.length > 0 ? regions[regions.length - 1].uid + 1 : 1;
     }
     return 0;
 }
