@@ -993,9 +993,10 @@ function setRegionColor() {
     var red = parseInt( hexColor.substring(1,3), 16 );
     var green = parseInt( hexColor.substring(3,5), 16 );
     var blue = parseInt( hexColor.substring(5,7), 16 );
-    annotationColorLabel.alpha = $('#alphaSlider').val() / 100;
+    var alpha = $('#alphaSlider').val() / 100;
+    annotationColorLabel.alpha = alpha;
     // update region tag
-    $(".region-tag#" + annotationColorLabel.uid + ">.region-color").css('background-color','rgba('+red+','+green+','+blue+',0.67)');
+    $(".region-tag#" + annotationColorLabel.uid + ">.region-color").css('background-color','rgba('+red+','+green+','+blue+','+alpha+')');
     $('#colorSelector').css('display', 'none');
 }
 
@@ -1009,6 +1010,30 @@ function onFillColorPicker(value) {
     annotationColorLabel.color.blue = parseInt( hexColor.substring(5,7), 16);
     annotationColorLabel.alpha = $('#alphaSlider').val() / 100;
 
+    updateAnnotationStyle();
+
+    paper.view.draw();
+}
+
+function onAlphaSlider(value) {
+    $('#alphaFill').val(value);
+    annotationColorLabel.alpha = $('#alphaSlider').val() / 100;
+
+    updateAnnotationStyle();
+
+    paper.view.draw();
+}
+
+function onAlphaInput(value) {
+    $('#alphaSlider').val(value);
+    annotationColorLabel.alpha = $('#alphaSlider').val() / 100;
+
+    updateAnnotationStyle();
+
+    paper.view.draw();
+}
+
+function updateAnnotationStyle() {
     for(var i=0; i<ImageInfo[0].Regions.length; i++) {
         var reg = ImageInfo[0].Regions[i];
         if(reg.name == annotationColorLabel.label) {
@@ -1017,20 +1042,6 @@ function onFillColorPicker(value) {
                 ',' + annotationColorLabel.color.blue + ',' + annotationColorLabel.alpha + ')';
         }
     }
-
-    paper.view.draw();
-}
-
-function onAlphaSlider(value) {
-    $('#alphaFill').val(value);
-    annotationColorLabel.alpha = $('#alphaSlider').val() / 100;
-    paper.view.draw();
-}
-
-function onAlphaInput(value) {
-    $('#alphaSlider').val(value);
-    annotationColorLabel.alpha = $('#alphaSlider').val() / 100;
-    paper.view.draw();
 }
 
 /*** UNDO ***/
