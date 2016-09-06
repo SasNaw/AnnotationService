@@ -4,11 +4,9 @@ var debug = 1;
 var ImageInfo = {};             // regions, and projectID (for the paper.js canvas) for each slices, can be accessed by
                                 // the slice name. (e.g. ImageInfo[imageOrder[viewer.current_page()]])
                                 // regions contain a paper.js path, a unique ID and a name
-var imageOrder = [];            // names of slices ordered by their openseadragon page numbers
 var currentImage = undefined;   // name of the current image
 var prevImage = undefined;      // name of the last image
 var region = null;	            // currently selected region (one element of Regions[])
-var copyRegion;		            // clone of the currently selected region for copy/paste
 var handle;			            // currently selected control point or handle (if any)
 var selectedTool;	            // currently selected tool
 var viewer;			            // open seadragon viewer
@@ -16,9 +14,6 @@ var navEnabled = true;          // flag indicating whether the navigator is enab
 var magicV = 1000;	            // resolution of the annotation canvas - is changed automatically to reflect the size of the tileSource
 var myOrigin = {};	            // Origin identification for DB storage
 var	params;			            // URL parameters
-var UndoStack = [];
-var RedoStack = [];
-var mouseUndo;                  // tentative undo information.
 var newRegionFlag;	            // true when a region is being drawn
 var drawingPolygonFlag = false; // true when drawing a polygon
 var annotationLoadingFlag;      // true when an annotation is being loaded
@@ -166,6 +161,9 @@ function newRegion(arg, imageNumber) {
         reg.path.selected = false;
     }
 
+    if(arg.zoom) {
+        reg.zoom = arg.zoom;
+    }
     reg.context = arg.context ? arg.context : [];
 
 	if( imageNumber === undefined ) {
@@ -482,6 +480,12 @@ function clickHandler(event){
 	}
 }
 
+function getZoom() {
+    var zoom = viewer.viewport.viewportToImageZoom(viewer.viewport.getZoom(true));
+    zoom = Math.round(zoom * 10000) / 10000;
+    return zoom;
+}
+
 function addPoi(event) {
 	var webPoint = event.position;
     var point = paper.view.viewToProject(new paper.Point(webPoint.x,webPoint.y));
@@ -513,7 +517,7 @@ function addPoi(event) {
             }
             // create region
             path.closed = true;
-            region = newRegion({path:path, imgCoords:imgPoints});
+            region = newRegion({path:path, imgCoords:imgPoints, zoom:getZoom()});
             paper.view.draw();
             findContextRegion(region);
             console.log("opencv: success!");
@@ -713,7 +717,6 @@ function handleRegionTap(event) {
 function mouseDown(x,y) {
     if( debug > 1 ) console.log("> mouseDown");
 
-    mouseUndo = getUndo();
     var prevRegion = null;
     var point = paper.view.viewToProject(new paper.Point(x,y));
     var imgCoord = viewer.viewport.windowToImageCoordinates(new OpenSeadragon.Point(x,y));
@@ -786,11 +789,10 @@ function mouseDown(x,y) {
         // start a new region
         var path = new paper.Path({segments:[point]})
         path.strokeWidth = config.defaultStrokeWidth;
-        region = newRegion({path:path, imgCoords:[imgCoord]});
+        region = newRegion({path:path, imgCoords:[imgCoord], zoom:getZoom()});
         // signal that a new region has been created for drawing
         newRegionFlag = true;
 
-        commitMouseUndo();
     } else if(selectedTool == "draw-polygon") {
         // is already drawing a polygon or not?
         if( drawingPolygonFlag == false ) {
@@ -802,11 +804,10 @@ function mouseDown(x,y) {
             // Start a new Region with alpha 0
             var path = new paper.Path({segments:[point]})
             path.strokeWidth = config.defaultStrokeWidth;
-            region = newRegion({path:path, imgCoords:[imgCoord]});
+            region = newRegion({path:path, imgCoords:[imgCoord], zoom:getZoom()});
             region.path.fillColor.alpha = 0;
             region.path.selected = true;
             drawingPolygonFlag = true;
-            commitMouseUndo();
         } else {
             var hitResult = paper.project.hitTest(point, {tolerance:10, segments:true});
             if( hitResult && hitResult.item == region.path && hitResult.segment.point == region.path.segments[0].point ) {
@@ -818,7 +819,6 @@ function mouseDown(x,y) {
                 // add point to region
                 region.path.add(point);
                 region.imgCoords.push(imgCoord)
-                commitMouseUndo();
             }
         }
     } else if(selectedTool == "distance") {
@@ -855,7 +855,6 @@ function mouseDrag(x,y,dx,dy) {
         handle.x += point.x-handle.point.x;
         handle.y += point.y-handle.point.y;
         handle.point = point;
-        commitMouseUndo();
     } else if( selectedTool == "draw") {
         region.path.add(point);
         region.imgCoords.push(imgCoord)
@@ -1044,133 +1043,6 @@ function updateAnnotationStyle() {
     }
 }
 
-/*** UNDO ***/
-
-/**
- * Command to actually perform an undo.
- */
-function cmdUndo() {
-    if( UndoStack.length > 0 ) {
-        var redoInfo = getUndo();
-        var undoInfo = UndoStack.pop();
-        applyUndo(undoInfo);
-        RedoStack.push(redoInfo);
-        paper.view.draw();
-    }
-}
-
-/**
- * Command to actually perform a redo.
- */
-function cmdRedo() {
-    if( RedoStack.length > 0 ) {
-        var undoInfo = getUndo();
-        var redoInfo = RedoStack.pop();
-        applyUndo(redoInfo);
-        UndoStack.push(undoInfo);
-        paper.view.draw();
-    }
-}
-
-/**
- * Return a complete copy of the current state as an undo object.
- */
-function getUndo() {
-    var undo = { imageNumber: currentImage, regions: [], drawingPolygonFlag: drawingPolygonFlag };
-    var info = ImageInfo[currentImage]["Regions"];
-
-    for( var i = 0; i < info.length; i++ ) {
-	    var el;
-		if(info[i].path) {
-			el = {
-				json: JSON.parse(info[i].path.exportJSON()),
-				name: info[i].name,
-				selected: info[i].path.selected,
-				fullySelected: info[i].path.fullySelected,
-                context: info[i].context
-			}
-
-		} else {
-			el = {
-				x: info[i].point.x,
-				y: info[i].point.y,
-				name: info[i].name
-			}
-		}
-		undo.regions.push(el);
-    }
-    return undo;
-}
-
-/**
- * Save an undo object. This has the side-effect of initializing the
- * redo stack.
- */
-function saveUndo(undoInfo) {
-	UndoStack.push(undoInfo);
-	RedoStack = [];
-}
-
-function setImage(imageNumber) {
-    if( debug ) console.log("> setImage");
-    var index = imageOrder.indexOf(imageNumber);
-
-    // update image slider
-    update_slider_value(index);
-
-    loadImage(imageOrder[index]);
-}
-
-/**
- * Restore the current state from an undo object.
- */
-function applyUndo(undo) {
-    if( undo.imageNumber !== currentImage )
-        setImage(undo.imageNumber);
-    var info = ImageInfo[undo.imageNumber]["Regions"];
-    while( info.length > 0 )
-        removeRegion(info[0], undo.imageNumber);
-    region = null;
-    for( var i = 0; i < undo.regions.length; i++ ) {
-        var el = undo.regions[i];
-        if(el.json) {
-        	var project = paper.projects[ImageInfo[undo.imageNumber]["projectID"]];
-			/* Create the path and add it to a specific project.
-			 */
-			var path = new paper.Path();
-			project.addChild(path);
-			path.importJSON(el.json);
-			reg = newRegion({name:el.name, path:path, context:el.context}, undo.imageNumber);
-		    // here order matters. if fully selected is set after selected, partially selected paths will be incorrect
-	  		reg.path.fullySelected = el.fullySelected;
-	 		reg.path.selected = el.selected;
-			if( el.selected ) {
-				if( region === null )
-					region = reg;
-				else
-					console.log("Should not happen: two regions selected?");
-			}
-        } else {
-        	reg = newRegion({name:el.name, x:el.x, y:el.y}, undo.imageNumber);
-        	viewer.addOverlay(reg.img, reg.point);
-        }
-
-    }
-    drawingPolygonFlag = undo.drawingPolygonFlag;
-}
-
-/**
- * If we have actually made a change with a mouse operation, commit
- * the undo information.
- */
-function commitMouseUndo() {
-    if( mouseUndo !== undefined ) {
-        saveUndo(mouseUndo);
-        mouseUndo = undefined;
-    }
-}
-
-
 /***3
     Tool selection
 */
@@ -1186,7 +1058,6 @@ function finishDrawingPolygon(closed){
     region.path.fullySelected = true;
     //region.path.smooth();
     drawingPolygonFlag = false;
-    commitMouseUndo();
 }
 
 function backToPreviousTool(prevTool) {
@@ -1207,12 +1078,10 @@ function backToSelect() {
  * This function deletes the currently selected object.
  */
 function cmdDeleteSelected() {
-    var undoInfo = getUndo();
     var i;
     for( i in ImageInfo[currentImage]["Regions"] ) {
         if( ImageInfo[currentImage]["Regions"][i] == region ) {
             removeRegion(ImageInfo[currentImage]["Regions"][i]);
-            saveUndo(undoInfo);
             paper.view.draw();
             break;
         }
@@ -1334,17 +1203,6 @@ function loadJson() {
 /***5
     Initialisation
 */
-
-function loadImage(name) {
-    if( debug ) console.log("> loadImage(" + name + ")");
-    // save previous image for some (later) cleanup
-    prevImage = currentImage;
-
-    // set current image to new image
-    currentImage = name;
-
-    viewer.open(ImageInfo[currentImage]["source"]);
-}
 
 function resizeAnnotationOverlay() {
     if( debug ) console.log("> resizeAnnotationOverlay");
