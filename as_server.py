@@ -1,22 +1,8 @@
 #!/usr/bin/env python
 #
-# deepzoom_server - Example web application for serving whole-slide images
-#
-# Copyright (c) 2010-2015 Carnegie Mellon University
-#
 # This library is free software; you can redistribute it and/or modify it
 # under the terms of version 2.1 of the GNU Lesser General Public License
 # as published by the Free Software Foundation.
-#
-# This library is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
-# License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with this library; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#
 
 from flask import Flask, abort, make_response, render_template, url_for, request, jsonify
 from io import BytesIO
@@ -36,6 +22,8 @@ DEEPZOOM_OVERLAP = 0
 DEEPZOOM_LIMIT_BOUNDS = True
 DEEPZOOM_TILE_QUALITY = 100
 SLIDE_NAME = 'slide'
+SLIDE_DICTIONARIES = 'static/slideDictionaries.json'
+global DEFAULT_DICTIONARY
 
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -45,6 +33,19 @@ class PILBytesIO(BytesIO):
     def fileno(self):
         '''Classic PIL doesn't understand io.UnsupportedOperation.'''
         raise AttributeError('Not supported')
+
+
+def getDictionary(file_path):
+    with open(SLIDE_DICTIONARIES, 'r') as file:
+        dictioary_map = json.loads(file.read())
+    dictionary = dictioary_map.get(file_path)
+    if dictionary:
+        return dictionary
+    else:
+        dictioary_map[file_path] = DEFAULT_DICTIONARY
+        with open(SLIDE_DICTIONARIES, 'w') as file:
+            file.write(json.dumps(dictioary_map))
+        return DEFAULT_DICTIONARY
 
 
 @app.route('/wsi/<path:file_path>.dzi')
@@ -65,7 +66,7 @@ def index_dzi(file_path):
             slide_mpp = (float(mpp_x) + float(mpp_y)) / 2
     except IOError:
         slide_mpp = 0
-    return render_template('as_viewer.html', slide_url=slide_url, slide_mpp=slide_mpp, file_name=file_name)
+    return render_template('as_viewer.html', slide_url=slide_url, slide_mpp=slide_mpp, file_name=file_name, dictionary=getDictionary(file_name))
 
 
 @app.route('/wsi/<path:file_path>')
@@ -93,7 +94,7 @@ def index_wsi(file_path):
     except (KeyError, ValueError):
         slide_mpp = 0
     slide_url = url_for('dzi', slug=SLIDE_NAME)
-    return render_template('as_viewer.html', slide_url=slide_url, slide_mpp=slide_mpp, file_name=file_path)
+    return render_template('as_viewer.html', slide_url=slide_url, slide_mpp=slide_mpp, file_name=file_path, dictionary=getDictionary(file_path))
 
 
 @app.route('/<slug>.dzi')
@@ -159,6 +160,7 @@ def loadJson():
 @app.route('/createDictionary')
 def createDictionary():
     name = request.args.get('name', '')
+    slide = request.args.get('slide')
     path = 'static/dictionaries/' + name
     if os.path.isfile(path):
         # dictionary already exists
@@ -166,13 +168,27 @@ def createDictionary():
     else:
         with open(path, 'w+') as dictionary:
             dictionary.write("[]")
-        with open('static/configuration.json', 'r') as config:
-            content = json.loads(config.read())
-            content['dictionary'] = name
-        with open('static/configuration.json', 'w+') as config:
-            config.write(json.dumps(content))
-        respone = '{"name":"' + name + '", "path":"/' + path + '"}';
-        return respone
+
+    with open(SLIDE_DICTIONARIES, 'r') as file:
+        dictioary_map = json.loads(file.read())
+    dictioary_map[slide] = name
+    with open(SLIDE_DICTIONARIES, 'w') as file:
+        file.write(json.dumps(dictioary_map))
+
+    respone = '{"name":"' + name + '", "path":"/' + path + '"}';
+    return respone
+
+
+@app.route('/static/dictionaries/<dictionary>')
+def loadDictionary(dictionary):
+    dictionary = 'static/dictionaries/' + dictionary
+    if os.path.isfile('/' + dictionary):
+        # no dictionary found
+        return '404'
+    else:
+        # return dictionary
+        with open(dictionary, 'r') as file:
+            return json.dumps(file.read())
 
 
 @app.route('/getDictionaries')
@@ -185,6 +201,19 @@ def getDictionaries():
         # return dictionaries
         return json.dumps(os.listdir(dir))
 
+
+@app.route('/switchDictionary')
+def switchDictionary():
+    name = request.args.get('name', '')
+    slide = request.args.get('slide')
+
+    with open(SLIDE_DICTIONARIES, 'r') as file:
+        dictioary_map = json.loads(file.read())
+    dictioary_map[slide] = name
+    with open(SLIDE_DICTIONARIES, 'w') as file:
+        file.write(json.dumps(dictioary_map))
+
+    return '200'
 
 # to use your own segmentation script, place the python file in "static/segmentation" and change the script name
 # in configuration.json (key: "segmentationScript"). Make sure, your script provides a "run(x,y)" function.
@@ -248,5 +277,12 @@ if __name__ == '__main__':
         if not k.startswith('_') and getattr(opts, k) is None:
             delattr(opts, k)
     app.config.from_object(opts)
+
+    if not os.path.isfile(SLIDE_DICTIONARIES):
+        with open(SLIDE_DICTIONARIES, 'w') as file:
+            file.write('{}')
+
+    with open('static/configuration.json', 'r') as config:
+        DEFAULT_DICTIONARY = json.loads(config.read()).get('dictionary')
 
     app.run(host=opts.host, port=opts.port, threaded=True)

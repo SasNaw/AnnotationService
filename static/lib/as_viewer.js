@@ -1169,11 +1169,11 @@ function saveConfig() {
 }
 
 function saveDictionary() {
-    saveJson(labelDictionary, "dictionaries/" + config.dictionary);
+    saveJson(labelDictionary, "dictionaries/" + slide.dictionary);
 }
 
 function getJsonSource() {
-    return slide.name + ".json";
+    return slide.name + '_' + slide.dictionary;
 }
 
 function saveRegions() {
@@ -1303,7 +1303,7 @@ function loadConfiguration() {
         getDictionaryList();
 
         // load label dictionary
-        loadDictionary(staticPath + "/dictionaries/" + config.dictionary);
+        loadDictionary(staticPath + "/dictionaries/" + slide.dictionary);
 
         drawingTools = ["select", "draw", "draw-polygon", "save", "addpoi"];
         if( config.drawingEnabled == false ) {
@@ -1328,9 +1328,13 @@ function toggleDictPicker() {
 }
 
 function dictListClick(index) {
-    config.dictionary = dictionaries[index];
-    saveConfig();
+    slide.dictionary = dictionaries[index];
+    $.ajax({
+        url: "/switchDictionary?name=" + slide.dictionary + "&slide=" + slide.name,
+        type: "GET"
+    });
     loadDictionary(staticPath + "/dictionaries/" + dictionaries[index]);
+    loadJson();
 }
 
 function getDictionaryList() {
@@ -1349,12 +1353,15 @@ function getDictionaryList() {
 }
 
 function loadDictionary(path) {
+    while(ImageInfo[currentImage].Regions.length > 0) {
+        removeRegion(ImageInfo[currentImage].Regions[0])
+    }
     $.ajax({
         url: path,
         dataType: "json",
         success: function (dictionary) {
-            labelDictionary = dictionary;
-            $('#currentDictName').html(config.dictionary);
+            labelDictionary = JSON.parse(dictionary);
+            $('#currentDictName').html(slide.dictionary);
             appendLabelsToList();
         },
         error: function (data) {
@@ -1567,7 +1574,6 @@ $(document).keydown(function(e) {
         if(e.ctrlKey) {
             e.preventDefault();
             saveRegions();
-            saveDictionary();
         }
     } else if(e.keyCode == 107) {
         e.preventDefault();
@@ -1617,7 +1623,7 @@ function createNewDictionary(isCancelable) {
         // request creation of new dictionary and path to it
         $.ajax({
             type : "GET",
-            url : "/createDictionary?name="+name,
+            url : "/createDictionary?name="+name+"&slide="+slide.name,
         }).done(function (response) {
             if(response === "error") {
                 alert("Couldn't create dictionary since there is already a dictionary with that name!");
@@ -1625,7 +1631,7 @@ function createNewDictionary(isCancelable) {
                 var json = JSON.parse(response);
                 var path = json["path"];
                 var name = json["name"];
-                config.dictionary = name;
+                slide.dictionary = name;
                 loadDictionary(path);
                 getDictionaryList();
             }
@@ -1655,8 +1661,8 @@ $(document).keyup(function(e) {
     }
 });
 
-function init(file_name, url, mpp) {
-    slide = {"name":file_name, "url":url, "mpp":mpp};
+function init(file_name, url, mpp, dictionary) {
+    slide = {"name":file_name, "url":url, "mpp":mpp, "dictionary":dictionary};
     staticPath = "/static";
     loadConfiguration();
     initAnnotationService();
