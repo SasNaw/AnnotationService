@@ -325,8 +325,8 @@ function findRegionByName(name) {
     return null;
 }
 
-function uniqueID(labelDictionary) {
-    if(labelDictionary) {
+function uniqueID(forLabelDictionary) {
+    if(forLabelDictionary) {
         if( debug ) console.log("> uniqueID");
         return labelDictionary.length > 0 ? parseInt(labelDictionary[labelDictionary.length-1].uid) + 1 : 1;
     } else {
