@@ -1573,6 +1573,7 @@ $(document).keydown(function(e) {
         // ctrl + s
         if(e.ctrlKey) {
             e.preventDefault();
+            saveDictionary();
             saveRegions();
         }
     } else if(e.keyCode == 107) {
